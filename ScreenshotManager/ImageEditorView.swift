@@ -868,6 +868,14 @@ private final class AnnotationDocument: ObservableObject {
 private struct RecognizedTextRegion: Identifiable, Equatable, Sendable {
     let id = UUID()
     let text: String
+    let sourceText: String
+    let boundingBox: NSRect
+    let characterBoxes: [RecognizedCharacterBox]
+}
+
+private struct RecognizedCharacterBox: Equatable, Sendable {
+    let character: String
+    let range: Range<String.Index>
     let boundingBox: NSRect
 }
 
@@ -881,8 +889,14 @@ private enum TextRecognitionService {
     private static func recognizeSync(cgImage: CGImage, imageSize: NSSize) -> [RecognizedTextRegion] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.revision = VNRecognizeTextRequestRevision3
         request.usesLanguageCorrection = true
+
+        let supportedRevisions = VNRecognizeTextRequest.supportedRevisions
+        if supportedRevisions.contains(VNRecognizeTextRequestRevision3) {
+            request.revision = VNRecognizeTextRequestRevision3
+        } else if let newestSupportedRevision = supportedRevisions.max() {
+            request.revision = newestSupportedRevision
+        }
 
         if #available(macOS 13.0, *) {
             request.automaticallyDetectsLanguage = true
@@ -901,10 +915,15 @@ private enum TextRecognitionService {
                 return nil
             }
 
-            let text = candidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let originalText = candidate.string
+            let text = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else {
                 return nil
             }
+
+            let leadingWhitespaceCount = originalText.prefix { $0.isWhitespace }.count
+            let textStart = originalText.index(originalText.startIndex, offsetBy: leadingWhitespaceCount)
+            let textEnd = originalText.index(textStart, offsetBy: text.count)
 
             let box = observation.boundingBox
             let rect = NSRect(
@@ -918,8 +937,62 @@ private enum TextRecognitionService {
                 return nil
             }
 
-            return RecognizedTextRegion(text: text, boundingBox: rect)
+            let characterBoxes = characterBoxes(
+                for: candidate,
+                textRange: textStart..<textEnd,
+                imageSize: imageSize
+            )
+
+            return RecognizedTextRegion(
+                text: text,
+                sourceText: originalText,
+                boundingBox: rect,
+                characterBoxes: characterBoxes
+            )
         }
+    }
+
+    private static func characterBoxes(
+        for candidate: VNRecognizedText,
+        textRange: Range<String.Index>,
+        imageSize: NSSize
+    ) -> [RecognizedCharacterBox] {
+        var boxes: [RecognizedCharacterBox] = []
+        var index = textRange.lowerBound
+
+        while index < textRange.upperBound {
+            let nextIndex = candidate.string.index(after: index)
+            defer {
+                index = nextIndex
+            }
+
+            guard !candidate.string[index].isWhitespace else {
+                continue
+            }
+
+            guard let box = (try? candidate.boundingBox(for: index..<nextIndex))??.boundingBox else {
+                continue
+            }
+
+            let rect = NSRect(
+                x: box.minX * imageSize.width,
+                y: box.minY * imageSize.height,
+                width: box.width * imageSize.width,
+                height: box.height * imageSize.height
+            )
+
+            guard rect.width >= 0.5, rect.height >= 0.5 else {
+                continue
+            }
+
+            boxes.append(RecognizedCharacterBox(
+                character: String(candidate.string[index]),
+                range: index..<nextIndex,
+                boundingBox: rect
+            ))
+        }
+
+        return boxes
     }
 }
 
@@ -1126,6 +1199,8 @@ private final class AnnotationCanvasNSView: NSView {
             textSelectionStart = nil
             textSelectionCurrent = nil
             selectedTextRegionIDs.removeAll()
+            selectedTextCharacterIndexes.removeAll()
+            selectedRecognizedText = nil
             needsDisplay = true
         }
     }
@@ -1144,6 +1219,8 @@ private final class AnnotationCanvasNSView: NSView {
     private var textSelectionStart: NSPoint?
     private var textSelectionCurrent: NSPoint?
     private var selectedTextRegionIDs = Set<UUID>()
+    private var selectedTextCharacterIndexes: [UUID: Set<Int>] = [:]
+    private var selectedRecognizedText: String?
     private var textCopyFeedback: String?
     private var trackingArea: NSTrackingArea?
 
@@ -1194,6 +1271,8 @@ private final class AnnotationCanvasNSView: NSView {
             textSelectionStart = localPoint
             textSelectionCurrent = localPoint
             selectedTextRegionIDs = [textRegion.id]
+            selectedTextCharacterIndexes.removeAll()
+            selectedRecognizedText = nil
             needsDisplay = true
             return
         }
@@ -1699,16 +1778,67 @@ private final class AnnotationCanvasNSView: NSView {
         if selectionRect.width < 3, selectionRect.height < 3 {
             if let region = recognizedTextRegion(at: localPoint) {
                 selectedTextRegionIDs = [region.id]
+                selectedTextCharacterIndexes.removeAll()
+                selectedRecognizedText = nil
             }
+        } else if let fragmentSelection = textFragmentSelection(in: selectionRect, imageRect: imageRect) {
+            selectedTextRegionIDs = [fragmentSelection.regionID]
+            selectedTextCharacterIndexes = [fragmentSelection.regionID: fragmentSelection.characterIndexes]
+            selectedRecognizedText = fragmentSelection.text
         } else {
             let ids = document.recognizedTextRegions.compactMap { region -> UUID? in
                 let rect = viewRect(for: region.boundingBox, imageRect: imageRect, imageSize: document.image.size)
                 return rect.intersects(selectionRect) ? region.id : nil
             }
             selectedTextRegionIDs = Set(ids)
+            selectedTextCharacterIndexes.removeAll()
+            selectedRecognizedText = nil
         }
 
         needsDisplay = true
+    }
+
+    private func textFragmentSelection(
+        in selectionRect: NSRect,
+        imageRect: NSRect
+    ) -> (regionID: UUID, characterIndexes: Set<Int>, text: String)? {
+        guard let document,
+              let textSelectionStart,
+              let startRegion = recognizedTextRegion(at: textSelectionStart),
+              let currentPoint = textSelectionCurrent,
+              let currentRegion = recognizedTextRegion(at: currentPoint),
+              startRegion.id == currentRegion.id,
+              !startRegion.characterBoxes.isEmpty else {
+            return nil
+        }
+
+        let selectedCharacterIndexes = startRegion.characterBoxes.enumerated().compactMap { index, box -> Int? in
+            let rect = viewRect(for: box.boundingBox, imageRect: imageRect, imageSize: document.image.size)
+            return rect.intersects(selectionRect.insetBy(dx: -1.5, dy: -3)) ? index : nil
+        }
+
+        guard !selectedCharacterIndexes.isEmpty else {
+            return nil
+        }
+
+        let indexSet = Set(selectedCharacterIndexes)
+        let selectedBoxes = startRegion.characterBoxes.enumerated()
+            .filter { indexSet.contains($0.offset) }
+            .map(\.element)
+
+        guard let firstSelectedBox = selectedBoxes.first,
+              let lastSelectedBox = selectedBoxes.last else {
+            return nil
+        }
+
+        let text = String(startRegion.sourceText[firstSelectedBox.range.lowerBound..<lastSelectedBox.range.upperBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !text.isEmpty else {
+            return nil
+        }
+
+        return (startRegion.id, indexSet, text)
     }
 
     private func copySelectedRecognizedText() {
@@ -1726,9 +1856,9 @@ private final class AnnotationCanvasNSView: NSView {
                 return first.boundingBox.minX < second.boundingBox.minX
             }
 
-        let text = selectedRegions
+        let text = (selectedRecognizedText ?? selectedRegions
             .map(\.text)
-            .joined(separator: "\n")
+            .joined(separator: "\n"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !text.isEmpty else {
@@ -1738,7 +1868,9 @@ private final class AnnotationCanvasNSView: NSView {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
-        textCopyFeedback = selectedRegions.count == 1 ? "Copied text" : "Copied \(selectedRegions.count) text blocks"
+        textCopyFeedback = selectedRecognizedText == nil && selectedRegions.count > 1
+            ? "Copied \(selectedRegions.count) text blocks"
+            : "Copied text"
         needsDisplay = true
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
@@ -1758,9 +1890,10 @@ private final class AnnotationCanvasNSView: NSView {
         for region in document.recognizedTextRegions {
             let rect = viewRect(for: region.boundingBox, imageRect: imageRect, imageSize: imageSize)
             let isSelected = selectedTextRegionIDs.contains(region.id)
+            let selectedCharacterIndexes = selectedTextCharacterIndexes[region.id] ?? []
             let path = NSBezierPath(roundedRect: rect.insetBy(dx: -1.5, dy: -1.5), xRadius: 3, yRadius: 3)
 
-            if isSelected {
+            if isSelected, selectedCharacterIndexes.isEmpty {
                 NSColor.controlAccentColor.withAlphaComponent(0.28).setFill()
                 path.fill()
                 NSColor.controlAccentColor.withAlphaComponent(0.95).setStroke()
@@ -1772,6 +1905,21 @@ private final class AnnotationCanvasNSView: NSView {
 
             path.lineWidth = isSelected ? 1.5 : 1
             path.stroke()
+
+            guard !selectedCharacterIndexes.isEmpty else {
+                continue
+            }
+
+            for index in selectedCharacterIndexes.sorted() where region.characterBoxes.indices.contains(index) {
+                let characterRect = viewRect(
+                    for: region.characterBoxes[index].boundingBox,
+                    imageRect: imageRect,
+                    imageSize: imageSize
+                ).insetBy(dx: -1.5, dy: -2)
+                let characterPath = NSBezierPath(roundedRect: characterRect, xRadius: 2.5, yRadius: 2.5)
+                NSColor.controlAccentColor.withAlphaComponent(0.34).setFill()
+                characterPath.fill()
+            }
         }
 
         if let textSelectionStart, let textSelectionCurrent {
