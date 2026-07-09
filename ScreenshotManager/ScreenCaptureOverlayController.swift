@@ -9,6 +9,7 @@ final class ScreenCaptureOverlayController {
     private var windows: [ScreenCaptureOverlayWindow] = []
     private var completion: ((Result<NSImage, Error>) -> Void)?
     private var keyMonitor: Any?
+    private var isFinishing = false
 
     private init() {}
 
@@ -22,7 +23,8 @@ final class ScreenCaptureOverlayController {
     }
 
     func start(completion: @escaping (Result<NSImage, Error>) -> Void) {
-        cancel()
+        cancel(invokeCompletion: false)
+        isFinishing = false
 
         self.completion = completion
         installKeyMonitor()
@@ -38,6 +40,7 @@ final class ScreenCaptureOverlayController {
             )
 
             let overlayView = ScreenCaptureOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
+            overlayView.isInteractionEnabled = true
             overlayView.windowTargets = windowTargets
             overlayView.frozenSnapshot = frozenSnapshot
             overlayView.pixelSampler = frozenSnapshot?.pixelSampler
@@ -65,13 +68,32 @@ final class ScreenCaptureOverlayController {
     }
 
     func cancel() {
+        cancel(invokeCompletion: false)
+    }
+
+    private func cancel(invokeCompletion: Bool) {
         removeKeyMonitor()
+        deactivateOverlayViews()
         windows.forEach { $0.orderOut(nil) }
         windows = []
-        completion = nil
+
+        guard invokeCompletion else {
+            completion = nil
+            isFinishing = false
+            return
+        }
+
+        let completion = completion
+        self.completion = nil
+        isFinishing = false
+        completion?(.failure(CancellationError()))
     }
 
     private func capture(localRect: NSRect, in window: NSWindow) {
+        guard !isFinishing else {
+            return
+        }
+
         let frozenImage = (window.contentView as? ScreenCaptureOverlayView)?
             .frozenSnapshot?
             .croppedImage(localRect: localRect)
@@ -83,6 +105,10 @@ final class ScreenCaptureOverlayController {
             height: localRect.height
         )
 
+        // Stop interaction/draw side-effects before tearing windows down.
+        // Pending CA display commits can still call draw(_:) after orderOut.
+        deactivateOverlayViews()
+        removeKeyMonitor()
         windows.forEach { $0.orderOut(nil) }
         windows = []
 
@@ -108,13 +134,26 @@ final class ScreenCaptureOverlayController {
     }
 
     private func finish(_ result: Result<NSImage, Error>) {
+        guard !isFinishing else {
+            return
+        }
+        isFinishing = true
+
         removeKeyMonitor()
+        deactivateOverlayViews()
         windows.forEach { $0.orderOut(nil) }
         windows = []
 
         let completion = completion
         self.completion = nil
+        isFinishing = false
         completion?(result)
+    }
+
+    private func deactivateOverlayViews() {
+        for window in windows {
+            (window.contentView as? ScreenCaptureOverlayView)?.isInteractionEnabled = false
+        }
     }
 
     private func installKeyMonitor() {
@@ -516,6 +555,9 @@ final class ScreenCaptureOverlayWindow: NSWindow {
 final class ScreenCaptureOverlayView: NSView {
     var onComplete: ((NSRect) -> Void)?
     var onCancel: (() -> Void)?
+    /// When false, skip interaction and text HUD drawing. Prevents CoreText
+    /// crashes from late display commits after the overlay is torn down.
+    var isInteractionEnabled = true
     fileprivate var windowTargets: [CaptureWindowTarget] = []
     fileprivate var frozenSnapshot: FrozenScreenSnapshot?
     fileprivate var pixelSampler: ScreenPixelSampler?
@@ -528,6 +570,7 @@ final class ScreenCaptureOverlayView: NSView {
     private var currentPixelSample: PixelSample?
     private var copyFeedbackText: String?
     private var trackingArea: NSTrackingArea?
+    private var didComplete = false
 
     override var acceptsFirstResponder: Bool {
         true
@@ -559,6 +602,10 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         let point = event.locationInWindow
         updateInspector(at: point)
         updateHoveredWindow(at: point)
@@ -566,6 +613,10 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     override func mouseExited(with event: NSEvent) {
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         hoveredWindowTarget = nil
         cursorPoint = nil
         currentPixelSample = nil
@@ -573,6 +624,10 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         let point = event.locationInWindow
         updateInspector(at: point)
         updateHoveredWindow(at: point)
@@ -584,7 +639,7 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let dragStart else {
+        guard isInteractionEnabled, !didComplete, let dragStart else {
             return
         }
 
@@ -602,8 +657,12 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         guard let dragStart else {
-            onCancel?()
+            completeCapture(with: nil)
             return
         }
 
@@ -613,22 +672,26 @@ final class ScreenCaptureOverlayView: NSView {
         self.dragStart = nil
 
         if distance >= 8, selectionRect.width >= 8, selectionRect.height >= 8 {
-            onComplete?(selectionRect)
+            completeCapture(with: selectionRect)
             return
         }
 
         if let target = pressedWindowTarget ?? target(at: endPoint),
            let rect = localCaptureRect(for: target) {
-            onComplete?(rect)
+            completeCapture(with: rect)
             return
         }
 
-        onCancel?()
+        completeCapture(with: nil)
     }
 
     override func keyDown(with event: NSEvent) {
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         if event.keyCode == 53 {
-            onCancel?()
+            completeCapture(with: nil)
         } else if event.keyCode == 36 || event.keyCode == 49 || event.keyCode == 76 {
             if !completeCurrentSelectionOrHover() {
                 super.keyDown(with: event)
@@ -659,6 +722,12 @@ final class ScreenCaptureOverlayView: NSView {
         NSColor.black.withAlphaComponent(0.46).setFill()
         bounds.fill()
 
+        // Late CA commits after teardown must not run CoreText HUD layout —
+        // that path crashed with nil font insertion (see DiagnosticReports).
+        guard isInteractionEnabled, !didComplete else {
+            return
+        }
+
         if selectionRect != .zero {
             drawSelection(selectionRect, title: nil)
         } else if let hoveredWindowTarget,
@@ -669,6 +738,20 @@ final class ScreenCaptureOverlayView: NSView {
         drawCursorGuide()
         drawInspectorHUD()
         drawHint()
+    }
+
+    private func completeCapture(with rect: NSRect?) {
+        guard !didComplete else {
+            return
+        }
+        didComplete = true
+        isInteractionEnabled = false
+
+        if let rect {
+            onComplete?(rect)
+        } else {
+            onCancel?()
+        }
     }
 
     private func updateInspector(at point: NSPoint) {
@@ -723,20 +806,20 @@ final class ScreenCaptureOverlayView: NSView {
 
     private func completeCurrentSelectionOrHover() -> Bool {
         if selectionRect.width >= 8, selectionRect.height >= 8 {
-            onComplete?(selectionRect)
+            completeCapture(with: selectionRect)
             return true
         }
 
         if let hoveredWindowTarget,
            let rect = localCaptureRect(for: hoveredWindowTarget) {
-            onComplete?(rect)
+            completeCapture(with: rect)
             return true
         }
 
         if let cursorPoint,
            let target = target(at: cursorPoint),
            let rect = localCaptureRect(for: target) {
-            onComplete?(rect)
+            completeCapture(with: rect)
             return true
         }
 
@@ -763,30 +846,28 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     private func drawWindowTitle(_ title: String, in rect: NSRect) {
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96)
-        ]
-        let attributedTitle = NSAttributedString(string: title, attributes: attributes)
-        let titleSize = attributedTitle.size()
+        let attributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.windowTitleFont,
+            color: OverlayTextStyle.primaryColor
+        )
+        let titleSize = OverlayTextStyle.measure(title, attributes: attributes)
         let titleRect = NSRect(
             x: rect.minX + 10,
             y: min(rect.maxY - titleSize.height - 10, bounds.maxY - titleSize.height - 14),
             width: min(titleSize.width, max(40, rect.width - 20)),
             height: titleSize.height
         )
-        attributedTitle.draw(in: titleRect)
+        OverlayTextStyle.draw(title, in: titleRect, attributes: attributes)
     }
 
     private func drawSelectionSize(_ rect: NSRect) {
         let scale = window?.screen?.backingScaleFactor ?? 1
         let text = "\(Int(round(rect.width * scale))) x \(Int(round(rect.height * scale)))"
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96)
-        ]
-        let attributedText = NSAttributedString(string: text, attributes: attributes)
-        let size = attributedText.size()
+        let attributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.selectionSizeFont,
+            color: OverlayTextStyle.primaryColor
+        )
+        let size = OverlayTextStyle.measure(text, attributes: attributes)
         let bubble = NSRect(
             x: min(max(rect.maxX - size.width - 18, bounds.minX + 10), bounds.maxX - size.width - 18),
             y: max(rect.minY + 10, bounds.minY + 10),
@@ -796,7 +877,7 @@ final class ScreenCaptureOverlayView: NSView {
 
         NSColor.black.withAlphaComponent(0.72).setFill()
         NSBezierPath(roundedRect: bubble, xRadius: 5, yRadius: 5).fill()
-        attributedText.draw(at: NSPoint(x: bubble.minX + 6, y: bubble.minY + 4))
+        OverlayTextStyle.draw(text, at: NSPoint(x: bubble.minX + 6, y: bubble.minY + 4), attributes: attributes)
     }
 
     private func drawCursorGuide() {
@@ -829,18 +910,18 @@ final class ScreenCaptureOverlayView: NSView {
             return
         }
 
-        let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96)
-        ]
-        let detailAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.74)
-        ]
-        let title = NSAttributedString(string: copyFeedbackText ?? sample.hexString, attributes: titleAttributes)
-        let detail = NSAttributedString(string: "\(sample.rgbString)   X \(sample.x) Y \(sample.y)", attributes: detailAttributes)
-        let titleSize = title.size()
-        let detailSize = detail.size()
+        let titleAttributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.hudTitleFont,
+            color: OverlayTextStyle.primaryColor
+        )
+        let detailAttributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.hudDetailFont,
+            color: OverlayTextStyle.secondaryColor
+        )
+        let titleText = copyFeedbackText ?? sample.hexString
+        let detailText = "\(sample.rgbString)   X \(sample.x) Y \(sample.y)"
+        let titleSize = OverlayTextStyle.measure(titleText, attributes: titleAttributes)
+        let detailSize = OverlayTextStyle.measure(detailText, attributes: detailAttributes)
         let hudWidth = max(titleSize.width, detailSize.width) + 46
         let hudHeight: CGFloat = 46
         let hudRect = inspectorRect(near: cursorPoint, width: hudWidth, height: hudHeight)
@@ -856,8 +937,8 @@ final class ScreenCaptureOverlayView: NSView {
         NSColor.white.withAlphaComponent(0.32).setStroke()
         NSBezierPath(roundedRect: swatchRect, xRadius: 4, yRadius: 4).stroke()
 
-        title.draw(at: NSPoint(x: hudRect.minX + 38, y: hudRect.minY + 24))
-        detail.draw(at: NSPoint(x: hudRect.minX + 38, y: hudRect.minY + 9))
+        OverlayTextStyle.draw(titleText, at: NSPoint(x: hudRect.minX + 38, y: hudRect.minY + 24), attributes: titleAttributes)
+        OverlayTextStyle.draw(detailText, at: NSPoint(x: hudRect.minX + 38, y: hudRect.minY + 9), attributes: detailAttributes)
     }
 
     private func inspectorRect(near point: NSPoint, width: CGFloat, height: CGFloat) -> NSRect {
@@ -904,12 +985,11 @@ final class ScreenCaptureOverlayView: NSView {
 
     private func drawHint() {
         let text = "Drag to capture   Click window   Tab copies color   Esc cancels"
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.88)
-        ]
-        let attributedText = NSAttributedString(string: text, attributes: attributes)
-        let size = attributedText.size()
+        let attributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.hintFont,
+            color: OverlayTextStyle.hintColor
+        )
+        let size = OverlayTextStyle.measure(text, attributes: attributes)
         let backgroundRect = NSRect(
             x: bounds.midX - (size.width + 24) / 2,
             y: bounds.maxY - size.height - 38,
@@ -918,11 +998,13 @@ final class ScreenCaptureOverlayView: NSView {
         )
         NSColor.black.withAlphaComponent(0.58).setFill()
         NSBezierPath(roundedRect: backgroundRect, xRadius: 7, yRadius: 7).fill()
-        attributedText.draw(
+        OverlayTextStyle.draw(
+            text,
             at: NSPoint(
                 x: backgroundRect.minX + 12,
                 y: backgroundRect.minY + 6
-            )
+            ),
+            attributes: attributes
         )
     }
 
@@ -937,6 +1019,62 @@ final class ScreenCaptureOverlayView: NSView {
 
     private func updateCursor(at point: NSPoint) {
         NSCursor.crosshair.set()
+    }
+}
+
+/// Text helpers for the capture overlay.
+///
+/// Crash reports showed SIGABRT in CoreText `TAttributes::ApplyFont` while measuring
+/// `NSAttributedString` built with `NSFont.monospacedSystemFont` during `draw(_:)`.
+/// That path intermittently inserts a nil CTFont. We pin concrete faces (Menlo /
+/// materialized system fonts) once and measure/draw via NSString attributes instead.
+fileprivate enum OverlayTextStyle {
+    static var primaryColor: NSColor { NSColor.white.withAlphaComponent(0.96) }
+    static var secondaryColor: NSColor { NSColor.white.withAlphaComponent(0.74) }
+    static var hintColor: NSColor { NSColor.white.withAlphaComponent(0.88) }
+
+    static var hudTitleFont: NSFont { resolvedMonospaced(size: 12, weight: .semibold) }
+    static var hudDetailFont: NSFont { resolvedMonospaced(size: 11, weight: .regular) }
+    static var selectionSizeFont: NSFont { resolvedMonospaced(size: 11, weight: .medium) }
+    static var windowTitleFont: NSFont { NSFont.systemFont(ofSize: 12, weight: .semibold) }
+    static var hintFont: NSFont { NSFont.systemFont(ofSize: 13, weight: .medium) }
+
+    static func attributes(font: NSFont, color: NSColor) -> [NSAttributedString.Key: Any] {
+        [
+            .font: font,
+            .foregroundColor: color
+        ]
+    }
+
+    static func measure(_ string: String, attributes: [NSAttributedString.Key: Any]) -> NSSize {
+        (string as NSString).size(withAttributes: attributes)
+    }
+
+    static func draw(_ string: String, at point: NSPoint, attributes: [NSAttributedString.Key: Any]) {
+        (string as NSString).draw(at: point, withAttributes: attributes)
+    }
+
+    static func draw(_ string: String, in rect: NSRect, attributes: [NSAttributedString.Key: Any]) {
+        (string as NSString).draw(in: rect, withAttributes: attributes)
+    }
+
+    private static func resolvedMonospaced(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        // Prefer a concrete installed face — always resolves to a real CTFont on macOS.
+        if weight >= .semibold {
+            if let bold = NSFont(name: "Menlo-Bold", size: size) {
+                return bold
+            }
+        } else if let menlo = NSFont(name: "Menlo", size: size) ?? NSFont(name: "Menlo-Regular", size: size) {
+            return menlo
+        }
+
+        let systemMono = NSFont.monospacedSystemFont(ofSize: size, weight: weight)
+        if let concrete = NSFont(descriptor: systemMono.fontDescriptor, size: size) {
+            return concrete
+        }
+
+        return NSFont.userFixedPitchFont(ofSize: size)
+            ?? NSFont.systemFont(ofSize: size, weight: weight)
     }
 }
 
