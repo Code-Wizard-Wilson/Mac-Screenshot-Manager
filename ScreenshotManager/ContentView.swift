@@ -601,6 +601,9 @@ private struct LibraryView: View {
                             .contextMenu {
                                 Button("Edit") { store.openAnnotationEditor(for: item) }
                                 Button("Open Preview") { previewItem = item }
+                                Button(store.isPinned(item) ? "Unpin Window" : "Pin Window") {
+                                    store.togglePin(item)
+                                }
                                 if !item.isTemporary {
                                     Button("Open in Preview") { store.open(item) }
                                     Button("Reveal in Finder") { store.revealInFinder(item) }
@@ -1041,6 +1044,13 @@ private struct ScreenshotPreviewOverlayView: View {
                         Spacer()
 
                         Button {
+                            store.pin(item)
+                        } label: {
+                            Label(store.isPinned(item) ? "Pinned" : "Pin", systemImage: store.isPinned(item) ? "pin.fill" : "pin")
+                        }
+                        .help("Pin as floating reference window")
+
+                        Button {
                             close()
                             store.openAnnotationEditor(for: item)
                         } label: {
@@ -1189,6 +1199,10 @@ struct ScreenshotPreviewWindowView: View {
 	    @State private var image: NSImage?
 	    @State private var fitToWindow = true
 
+    private var isPinned: Bool {
+        store.isPinned(item)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -1204,6 +1218,13 @@ struct ScreenshotPreviewWindowView: View {
                 }
 
                 Spacer()
+
+                Button {
+                    store.togglePin(item)
+                } label: {
+                    Label(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin")
+                }
+                .help(isPinned ? "Close pinned reference window" : "Pin as floating reference window")
 
                 Button {
                     store.openAnnotationEditor(for: item)
@@ -1311,6 +1332,110 @@ struct ScreenshotPreviewWindowView: View {
     }
 }
 
+/// Floating always-on-top reference window for comparing a screenshot while working elsewhere.
+struct PinnedScreenshotWindowView: View {
+    @ObservedObject var store: ScreenshotStore
+    let pinID: String
+    let title: String
+    let dimensionsText: String
+
+    @State private var image: NSImage?
+    @State private var opacity: Double = 1
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(AppTypography.helper.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Text(dimensionsText)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                opacityControl
+
+                Button {
+                    if let image {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.writeObjects([image])
+                    }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .frame(width: 22, height: 20)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .help("Copy image")
+
+                Button {
+                    store.unpin(id: pinID)
+                } label: {
+                    Image(systemName: "pin.slash")
+                        .frame(width: 22, height: 20)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .help("Unpin and close")
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(AppTheme.toolbarBackground)
+
+            Divider()
+
+            ZStack {
+                AppTheme.contentBackground
+
+                if let image {
+                    GeometryReader { proxy in
+                        Image(nsImage: image)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                    }
+                    .padding(10)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+        }
+        .frame(minWidth: 280, minHeight: 200)
+        .background(AppTheme.windowBackground)
+        .task(id: pinID) {
+            image = store.pinnedImage(for: pinID)
+        }
+        .onChange(of: opacity) { _, newValue in
+            store.setPinnedWindowOpacity(id: pinID, opacity: newValue)
+        }
+    }
+
+    private var opacityControl: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "circle.lefthalf.filled")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Slider(value: $opacity, in: 0.25...1, step: 0.05)
+                .frame(width: 72)
+                .controlSize(.mini)
+                .help("Window opacity — useful when overlaying on another UI")
+        }
+    }
+}
+
 private struct CaptureKindBadge: View {
     let kind: CaptureKind
 
@@ -1369,6 +1494,9 @@ private struct PreviewPane: View {
                         }
                         .contextMenu {
                             Button("Open Large Preview") { previewItem = item }
+                            Button(store.isPinned(item) ? "Unpin Window" : "Pin Window") {
+                                store.togglePin(item)
+                            }
                             if !item.isTemporary {
                                 Button("Open in Preview") { store.open(item) }
                             }
@@ -1407,13 +1535,24 @@ private struct PreviewPane: View {
                                         .frame(maxWidth: .infinity)
                                 }
 
-                                if !item.isTemporary {
-                                    Button {
-                                        store.revealInFinder(item)
-                                    } label: {
-                                        Label("Finder", systemImage: "folder")
-                                            .frame(maxWidth: .infinity)
-                                    }
+                                Button {
+                                    store.togglePin(item)
+                                } label: {
+                                    Label(
+                                        store.isPinned(item) ? "Unpin" : "Pin",
+                                        systemImage: store.isPinned(item) ? "pin.slash" : "pin"
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .help(store.isPinned(item) ? "Close pinned reference" : "Pin as floating reference")
+                            }
+
+                            if !item.isTemporary {
+                                Button {
+                                    store.revealInFinder(item)
+                                } label: {
+                                    Label("Finder", systemImage: "folder")
+                                        .frame(maxWidth: .infinity)
                                 }
                             }
 

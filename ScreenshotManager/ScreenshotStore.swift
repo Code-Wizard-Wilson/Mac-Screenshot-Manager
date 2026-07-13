@@ -38,6 +38,10 @@ final class ScreenshotStore: ObservableObject {
     private var noticeClearTask: Task<Void, Never>?
     private var captureEditorWindowController: NSWindowController?
     private var previewWindowController: NSWindowController?
+    private var pinnedWindowControllers: [String: NSWindowController] = [:]
+    private var pinnedImages: [String: NSImage] = [:]
+    private var pinnedWindowCloseObservers: [String: NSObjectProtocol] = [:]
+    @Published private(set) var pinnedItemIDs: Set<String> = []
     private var temporaryItems: [ScreenshotItem] = []
     private var temporaryImages: [String: NSImage] = [:]
 
@@ -307,6 +311,195 @@ final class ScreenshotStore: ObservableObject {
         let controller = NSWindowController(window: window)
         previewWindowController = controller
         showWindowWithEntranceAnimation(controller)
+    }
+
+    func isPinned(_ item: ScreenshotItem) -> Bool {
+        pinnedItemIDs.contains(item.id)
+    }
+
+    func isPinned(id: String) -> Bool {
+        pinnedItemIDs.contains(id)
+    }
+
+    /// Pins a library/clipboard screenshot as a floating always-on-top reference window.
+    func pin(_ item: ScreenshotItem) {
+        if let controller = pinnedWindowControllers[item.id], let window = controller.window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        Task { @MainActor in
+            guard let image = await loadImage(for: item) else {
+                showNotice(
+                    title: "Pin Failed",
+                    detail: "Could not load this screenshot.",
+                    systemImage: "exclamationmark.triangle",
+                    tone: .failure
+                )
+                return
+            }
+
+            openPinnedWindow(
+                id: item.id,
+                title: item.fileName,
+                image: image,
+                dimensionsText: item.dimensionsText
+            )
+            showNotice(
+                title: "Pinned",
+                detail: "Stays on top for reference.",
+                systemImage: "pin.fill",
+                tone: .success
+            )
+        }
+    }
+
+    /// Pins an arbitrary image (e.g. current annotation result) as a floating reference.
+    func pinImage(_ image: NSImage, title: String) {
+        let id = "pinned-\(UUID().uuidString)"
+        let dimensions = Self.imageDimensions(image: image)
+        let dimensionsText: String
+        if dimensions.width > 0, dimensions.height > 0 {
+            dimensionsText = "\(dimensions.width)x\(dimensions.height)"
+        } else {
+            dimensionsText = "Pinned"
+        }
+
+        openPinnedWindow(
+            id: id,
+            title: title,
+            image: image,
+            dimensionsText: dimensionsText
+        )
+        showNotice(
+            title: "Pinned",
+            detail: "Stays on top for reference.",
+            systemImage: "pin.fill",
+            tone: .success
+        )
+    }
+
+    func togglePin(_ item: ScreenshotItem) {
+        if isPinned(item) {
+            unpin(id: item.id)
+        } else {
+            pin(item)
+        }
+    }
+
+    func unpin(id: String) {
+        if let observer = pinnedWindowCloseObservers.removeValue(forKey: id) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        if let controller = pinnedWindowControllers.removeValue(forKey: id) {
+            controller.close()
+        }
+
+        pinnedImages[id] = nil
+        pinnedItemIDs.remove(id)
+    }
+
+    func pinnedImage(for id: String) -> NSImage? {
+        pinnedImages[id]
+    }
+
+    func setPinnedWindowOpacity(id: String, opacity: CGFloat) {
+        guard let window = pinnedWindowControllers[id]?.window else {
+            return
+        }
+
+        let clamped = min(max(opacity, 0.25), 1)
+        window.alphaValue = clamped
+        window.isOpaque = clamped >= 0.99
+        window.backgroundColor = clamped >= 0.99 ? .windowBackgroundColor : .clear
+    }
+
+    private func openPinnedWindow(id: String, title: String, image: NSImage, dimensionsText: String) {
+        pinnedImages[id] = image
+
+        let contentView = PinnedScreenshotWindowView(
+            store: self,
+            pinID: id,
+            title: title,
+            dimensionsText: dimensionsText
+        )
+        let hostingController = NSHostingController(rootView: contentView)
+
+        let preferredSize = Self.preferredPinnedWindowSize(for: image)
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: preferredSize),
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = title
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.PinnedWindow.\(id)")
+        window.backgroundColor = .windowBackgroundColor
+        window.isOpaque = true
+        window.hasShadow = true
+        window.minSize = NSSize(width: 280, height: 200)
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        window.hidesOnDeactivate = false
+        window.isMovableByWindowBackground = true
+        window.contentViewController = hostingController
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.setContentSize(preferredSize)
+        window.center()
+
+        // Cascade multiple pins slightly so they don't fully stack.
+        let offset = CGFloat(pinnedWindowControllers.count % 6) * 28
+        if offset > 0 {
+            var frame = window.frame
+            frame.origin.x += offset
+            frame.origin.y -= offset
+            window.setFrame(frame, display: false)
+        }
+
+        let controller = NSWindowController(window: window)
+        pinnedWindowControllers[id] = controller
+        pinnedItemIDs.insert(id)
+
+        let observer = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handlePinnedWindowClosed(id: id)
+            }
+        }
+        pinnedWindowCloseObservers[id] = observer
+
+        showWindowWithEntranceAnimation(controller)
+    }
+
+    private func handlePinnedWindowClosed(id: String) {
+        if let observer = pinnedWindowCloseObservers.removeValue(forKey: id) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        pinnedWindowControllers[id] = nil
+        pinnedImages[id] = nil
+        pinnedItemIDs.remove(id)
+    }
+
+    private static func preferredPinnedWindowSize(for image: NSImage) -> NSSize {
+        let imageSize = image.size
+        let width = max(imageSize.width, 1)
+        let height = max(imageSize.height, 1)
+        let maxWidth: CGFloat = 720
+        let maxHeight: CGFloat = 520
+        let toolbarHeight: CGFloat = 48
+        let scale = min(maxWidth / width, maxHeight / height, 1)
+        return NSSize(
+            width: max(width * scale, 320),
+            height: max(height * scale + toolbarHeight, 240)
+        )
     }
 
     func openAnnotationEditor(for item: ScreenshotItem) {

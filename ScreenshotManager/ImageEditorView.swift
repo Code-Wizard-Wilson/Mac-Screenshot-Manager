@@ -260,6 +260,15 @@ struct CaptureAnnotationView: View {
 
                 // Actions
                 Button {
+                    pinCurrentImage()
+                } label: {
+                    toolbarIcon("pin")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Pin as floating reference window")
+
+                Button {
                     store.closeCaptureEditor()
                 } label: {
                     toolbarIcon("xmark")
@@ -486,6 +495,20 @@ struct CaptureAnnotationView: View {
 
     private func finishCapture() {
         store.finishAnnotatedCapture(document.renderedImage(), destination: session.destination)
+    }
+
+    private func pinCurrentImage() {
+        let title: String
+        switch session.destination {
+        case .edit(let item):
+            title = item.fileName
+        case .capture(.clipboard):
+            title = "Pinned Clipboard Screenshot"
+        case .capture(.save):
+            title = "Pinned Screenshot"
+        }
+
+        store.pinImage(document.renderedImage(), title: title)
     }
 
     private func installKeyboardMonitor() {
