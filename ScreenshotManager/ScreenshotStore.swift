@@ -43,7 +43,8 @@ final class ScreenshotStore: ObservableObject {
     private var pinnedWindowCloseObservers: [String: NSObjectProtocol] = [:]
     @Published private(set) var pinnedItemIDs: Set<String> = []
     private var temporaryItems: [ScreenshotItem] = []
-    private var temporaryImages: [String: NSImage] = [:]
+    private let temporaryImageDirectoryURL: URL
+    private var temporaryImageURLs: [String: URL] = [:]
 
     var hotkeysDidChange: (() -> Void)?
 
@@ -62,7 +63,14 @@ final class ScreenshotStore: ObservableObject {
         }
     }
 
+    deinit {
+        try? FileManager.default.removeItem(at: temporaryImageDirectoryURL)
+    }
+
     init() {
+        temporaryImageDirectoryURL = FileManager.default.temporaryDirectory
+            .appending(path: "ScreenshotManager-\(UUID().uuidString)", directoryHint: .isDirectory)
+
         let legacyHotkey = AppHotkey.load()
         clipboardHotkey = AppHotkey.load(named: "clipboard", fallback: legacyHotkey)
         saveHotkey = AppHotkey.load(named: "save", fallback: .defaultSaveValue)
@@ -637,7 +645,9 @@ final class ScreenshotStore: ObservableObject {
 
     func delete(_ item: ScreenshotItem) {
         if item.isTemporary {
-            temporaryImages[item.id] = nil
+            if let temporaryURL = temporaryImageURLs.removeValue(forKey: item.id) {
+                try? FileManager.default.removeItem(at: temporaryURL)
+            }
             temporaryItems.removeAll { $0.id == item.id }
             items.removeAll { $0.id == item.id }
             selectedItem = items.first
@@ -670,18 +680,28 @@ final class ScreenshotStore: ObservableObject {
     func finishAnnotatedCapture(_ image: NSImage, destination: CaptureAnnotationDestination) {
         switch destination {
         case .capture(.clipboard):
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.writeObjects([image])
-            let item = addTemporaryClipboardImage(image)
-            closeCaptureEditor(animated: true)
-            showNotice(
-                title: "Copied to Clipboard",
-                detail: "Visible until the app quits.",
-                systemImage: "doc.on.clipboard",
-                tone: .success
-            )
-            selectedItem = item
+            do {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.writeObjects([image])
+                let item = try addTemporaryClipboardImage(image)
+                closeCaptureEditor(animated: true)
+                showNotice(
+                    title: "Copied to Clipboard",
+                    detail: "Visible until the app quits.",
+                    systemImage: "doc.on.clipboard",
+                    tone: .success
+                )
+                selectedItem = item
+            } catch {
+                errorMessage = error.localizedDescription
+                showNotice(
+                    title: "Clipboard History Failed",
+                    detail: error.localizedDescription,
+                    systemImage: "exclamationmark.triangle",
+                    tone: .failure
+                )
+            }
         case .capture(.save):
             do {
                 let url = try ScreenshotCaptureService.save(image, in: folderURL, kind: .saved)
@@ -744,30 +764,22 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func image(for item: ScreenshotItem) -> NSImage? {
-        if let image = temporaryImages[item.id] {
-            return image
+        if let url = temporaryImageURLs[item.id] {
+            return NSImage(contentsOf: url)
         }
 
         return NSImage(contentsOf: item.url)
     }
 
     func loadImage(for item: ScreenshotItem) async -> NSImage? {
-        if let image = temporaryImages[item.id] {
-            return image
-        }
-
-        let url = item.url
+        let url = temporaryImageURLs[item.id] ?? item.url
         return await Task.detached(priority: .userInitiated) {
             NSImage(contentsOf: url)
         }.value
     }
 
     func thumbnail(for item: ScreenshotItem, maxPixelSize: Int) async -> NSImage? {
-        if let image = temporaryImages[item.id] {
-            return image
-        }
-
-        let url = item.url
+        let url = temporaryImageURLs[item.id] ?? item.url
         return await Task.detached(priority: .utility) {
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
@@ -909,12 +921,15 @@ final class ScreenshotStore: ObservableObject {
         showCaptureEditor(image: image, mode: mode)
     }
 
-    private func addTemporaryClipboardImage(_ image: NSImage) -> ScreenshotItem {
+    private func addTemporaryClipboardImage(_ image: NSImage) throws -> ScreenshotItem {
         let id = "temporary-\(UUID().uuidString)"
         let now = Date()
         let dimensions = Self.imageDimensions(image: image)
-        let byteSize = Int64(image.tiffRepresentation?.count ?? 0)
         let fileName = "\(CaptureKind.clipboard.filePrefix) Screenshot \(Self.fileTimestamp()).png"
+        try FileManager.default.createDirectory(at: temporaryImageDirectoryURL, withIntermediateDirectories: true)
+        let temporaryURL = temporaryImageDirectoryURL.appending(path: "\(id).png")
+        try ImageEditingService.write(image, to: temporaryURL)
+        let byteSize = (try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         let item = ScreenshotItem(
             id: id,
             url: URL(string: "memory://clipboard/\(id).png")!,
@@ -927,18 +942,27 @@ final class ScreenshotStore: ObservableObject {
             pixelHeight: dimensions.height
         )
 
-        temporaryImages[id] = image
+        temporaryImageURLs[id] = temporaryURL
         temporaryItems.insert(item, at: 0)
         items = temporaryItems + items.filter { !$0.isTemporary }
         return item
     }
 
     private func replaceTemporaryImage(_ image: NSImage, item: ScreenshotItem, showsNotice: Bool = true) {
-        guard let index = temporaryItems.firstIndex(where: { $0.id == item.id }) else {
+        guard let index = temporaryItems.firstIndex(where: { $0.id == item.id }),
+              let temporaryURL = temporaryImageURLs[item.id] else {
+            return
+        }
+
+        do {
+            try ImageEditingService.write(image, to: temporaryURL)
+        } catch {
+            errorMessage = error.localizedDescription
             return
         }
 
         let dimensions = Self.imageDimensions(image: image)
+        let byteSize = (try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         let updatedItem = ScreenshotItem(
             id: item.id,
             url: item.url,
@@ -946,12 +970,11 @@ final class ScreenshotStore: ObservableObject {
             captureKind: item.captureKind,
             createdAt: item.createdAt,
             modifiedAt: Date(),
-            byteSize: Int64(image.tiffRepresentation?.count ?? 0),
+            byteSize: byteSize,
             pixelWidth: dimensions.width,
             pixelHeight: dimensions.height
         )
 
-        temporaryImages[item.id] = image
         temporaryItems[index] = updatedItem
         items = temporaryItems + items.filter { !$0.isTemporary }
         selectedItem = updatedItem

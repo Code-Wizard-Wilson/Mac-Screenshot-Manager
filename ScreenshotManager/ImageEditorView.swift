@@ -160,7 +160,7 @@ struct CaptureAnnotationView: View {
         isCustomColorActive ? NSColor(customAnnotationColor) : selectedColor.nsColor
     }
     @State private var textValue = "Text"
-    @State private var keyMonitor: Any?
+    @StateObject private var keyboardMonitor = AnnotationKeyboardMonitor()
     @State private var showsBackgroundPanel = false
 
     init(store: ScreenshotStore, session: CaptureAnnotationSession) {
@@ -512,35 +512,57 @@ struct CaptureAnnotationView: View {
     }
 
     private func installKeyboardMonitor() {
-        removeKeyboardMonitor()
+        let destination = session.destination
 
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        keyboardMonitor.install { [weak store, weak document] event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let isReturn = event.keyCode == 36 || event.keyCode == 76
 
             if event.keyCode == 53 {
-                store.closeCaptureEditor(animated: true)
+                store?.closeCaptureEditor(animated: true)
                 return nil
             }
 
             let returnShouldFinish = isReturn && (flags.isEmpty || flags == .numericPad || flags.contains(.command))
 
-            guard returnShouldFinish else {
+            guard returnShouldFinish,
+                  let store,
+                  let document else {
                 return event
             }
 
-            finishCapture()
+            store.finishAnnotatedCapture(document.renderedImage(), destination: destination)
             return nil
         }
     }
 
     private func removeKeyboardMonitor() {
-        guard let keyMonitor else {
+        keyboardMonitor.remove()
+    }
+}
+
+@MainActor
+private final class AnnotationKeyboardMonitor: ObservableObject {
+    private var monitor: Any?
+
+    func install(handler: @escaping (NSEvent) -> NSEvent?) {
+        remove()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: handler)
+    }
+
+    func remove() {
+        guard let monitor else {
             return
         }
 
-        NSEvent.removeMonitor(keyMonitor)
-        self.keyMonitor = nil
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
+    }
+
+    deinit {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 }
 
