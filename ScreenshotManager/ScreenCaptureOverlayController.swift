@@ -39,6 +39,10 @@ final class ScreenCaptureOverlayController {
                 screen: screen
             )
 
+            window.onCancel = { [weak self] in
+                self?.finish(.failure(CancellationError()))
+            }
+
             let overlayView = ScreenCaptureOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
             overlayView.isInteractionEnabled = true
             overlayView.windowTargets = windowTargets
@@ -511,6 +515,8 @@ fileprivate final class ScreenPixelSampler {
 }
 
 final class ScreenCaptureOverlayWindow: NSWindow {
+    var onCancel: (() -> Void)?
+
     override var canBecomeKey: Bool {
         true
     }
@@ -538,6 +544,26 @@ final class ScreenCaptureOverlayWindow: NSWindow {
     ) {
         self.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
         setFrame(screen.frame, display: true)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown, event.keyCode == 53 {
+            onCancel?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        onCancel?()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            onCancel?()
+            return
+        }
+        super.keyDown(with: event)
     }
 
     private func configure() {

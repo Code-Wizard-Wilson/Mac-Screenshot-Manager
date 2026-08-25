@@ -1,0 +1,1446 @@
+[
+  {
+    "id": "applewatch-apple-watch-series-11-42mm-jet-black-aluminum-front",
+    "family": "appleWatch",
+    "model": "Apple Watch Series 11 42mm",
+    "color": "Jet Black Aluminum",
+    "orientation": "front",
+    "bezelPath": "Catalog/applewatch-apple-watch-series-11-42mm-jet-black-aluminum-front.png",
+    "maskPath": "Masks/applewatch-apple-watch-series-11-42mm-jet-black-aluminum-front-screen.png",
+    "quad": {
+      "topLeftX": 0.14038461538461539,
+      "topLeftY": 0.77875,
+      "topRightX": 0.8596153846153847,
+      "topRightY": 0.77875,
+      "bottomRightX": 0.8596153846153847,
+      "bottomRightY": 0.22124999999999995,
+      "bottomLeftX": 0.14038461538461539,
+      "bottomLeftY": 0.22124999999999995
+    }
+  },
+  {
+    "id": "applewatch-apple-watch-series-11-46mm-jet-black-aluminum-front",
+    "family": "appleWatch",
+    "model": "Apple Watch Series 11 46mm",
+    "color": "Jet Black Aluminum",
+    "orientation": "front",
+    "bezelPath": "Catalog/applewatch-apple-watch-series-11-46mm-jet-black-aluminum-front.png",
+    "maskPath": "Masks/applewatch-apple-watch-series-11-46mm-jet-black-aluminum-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12857142857142856,
+      "topLeftY": 0.7818181818181819,
+      "topRightX": 0.8714285714285714,
+      "topRightY": 0.7818181818181819,
+      "bottomRightX": 0.8714285714285714,
+      "bottomRightY": 0.21818181818181814,
+      "bottomLeftX": 0.12857142857142856,
+      "bottomLeftY": 0.21818181818181814
+    }
+  },
+  {
+    "id": "applewatch-apple-watch-ultra-2-natural-titanium-front",
+    "family": "appleWatch",
+    "model": "Apple Watch Ultra 2",
+    "color": "Natural Titanium",
+    "orientation": "front",
+    "bezelPath": "Catalog/applewatch-apple-watch-ultra-2-natural-titanium-front.png",
+    "maskPath": "Masks/applewatch-apple-watch-ultra-2-natural-titanium-front-screen.png",
+    "quad": {
+      "topLeftX": 0.15833333333333333,
+      "topLeftY": 0.8425531914893617,
+      "topRightX": 0.8416666666666667,
+      "topRightY": 0.8425531914893617,
+      "bottomRightX": 0.8416666666666667,
+      "bottomRightY": 0.2329787234042553,
+      "bottomLeftX": 0.15833333333333333,
+      "bottomLeftY": 0.2329787234042553
+    }
+  },
+  {
+    "id": "applewatch-apple-watch-ultra-3-natural-titanium-front",
+    "family": "appleWatch",
+    "model": "Apple Watch Ultra 3",
+    "color": "Natural Titanium",
+    "orientation": "front",
+    "bezelPath": "Catalog/applewatch-apple-watch-ultra-3-natural-titanium-front.png",
+    "maskPath": "Masks/applewatch-apple-watch-ultra-3-natural-titanium-front-screen.png",
+    "quad": {
+      "topLeftX": 0.14833333333333334,
+      "topLeftY": 0.8354166666666667,
+      "topRightX": 0.8516666666666667,
+      "topRightY": 0.8354166666666667,
+      "bottomRightX": 0.8516666666666667,
+      "bottomRightY": 0.23229166666666667,
+      "bottomLeftX": 0.14833333333333334,
+      "bottomLeftY": 0.23229166666666667
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-blue-landscape",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Blue",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-a16-blue-landscape.png",
+    "maskPath": "Masks/ipad-ipad-a16-blue-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.07246376811594203,
+      "topLeftY": 0.9019607843137255,
+      "topRightX": 0.927536231884058,
+      "topRightY": 0.9019607843137255,
+      "bottomRightX": 0.927536231884058,
+      "bottomRightY": 0.09852941176470587,
+      "bottomLeftX": 0.07246376811594203,
+      "bottomLeftY": 0.09852941176470587
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-pink-landscape",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Pink",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-a16-pink-landscape.png",
+    "maskPath": "Masks/ipad-ipad-a16-pink-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.07246376811594203,
+      "topLeftY": 0.9019607843137255,
+      "topRightX": 0.927536231884058,
+      "topRightY": 0.9019607843137255,
+      "bottomRightX": 0.927536231884058,
+      "bottomRightY": 0.09852941176470587,
+      "bottomLeftX": 0.07246376811594203,
+      "bottomLeftY": 0.09852941176470587
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-silver-landscape",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Silver",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-a16-silver-landscape.png",
+    "maskPath": "Masks/ipad-ipad-a16-silver-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.07246376811594203,
+      "topLeftY": 0.9019607843137255,
+      "topRightX": 0.927536231884058,
+      "topRightY": 0.9019607843137255,
+      "bottomRightX": 0.927536231884058,
+      "bottomRightY": 0.09852941176470587,
+      "bottomLeftX": 0.07246376811594203,
+      "bottomLeftY": 0.09852941176470587
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-yellow-landscape",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Yellow",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-a16-yellow-landscape.png",
+    "maskPath": "Masks/ipad-ipad-a16-yellow-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.07246376811594203,
+      "topLeftY": 0.9019607843137255,
+      "topRightX": 0.927536231884058,
+      "topRightY": 0.9019607843137255,
+      "bottomRightX": 0.927536231884058,
+      "bottomRightY": 0.09852941176470587,
+      "bottomLeftX": 0.07246376811594203,
+      "bottomLeftY": 0.09852941176470587
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-blue-portrait",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Blue",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-a16-blue-portrait.png",
+    "maskPath": "Masks/ipad-ipad-a16-blue-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.09803921568627451,
+      "topLeftY": 0.927536231884058,
+      "topRightX": 0.9014705882352941,
+      "topRightY": 0.927536231884058,
+      "bottomRightX": 0.9014705882352941,
+      "bottomRightY": 0.07246376811594202,
+      "bottomLeftX": 0.09803921568627451,
+      "bottomLeftY": 0.07246376811594202
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-pink-portrait",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Pink",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-a16-pink-portrait.png",
+    "maskPath": "Masks/ipad-ipad-a16-pink-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.09803921568627451,
+      "topLeftY": 0.927536231884058,
+      "topRightX": 0.9014705882352941,
+      "topRightY": 0.927536231884058,
+      "bottomRightX": 0.9014705882352941,
+      "bottomRightY": 0.07246376811594202,
+      "bottomLeftX": 0.09803921568627451,
+      "bottomLeftY": 0.07246376811594202
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-silver-portrait",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Silver",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-a16-silver-portrait.png",
+    "maskPath": "Masks/ipad-ipad-a16-silver-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.09803921568627451,
+      "topLeftY": 0.927536231884058,
+      "topRightX": 0.9014705882352941,
+      "topRightY": 0.927536231884058,
+      "bottomRightX": 0.9014705882352941,
+      "bottomRightY": 0.07246376811594202,
+      "bottomLeftX": 0.09803921568627451,
+      "bottomLeftY": 0.07246376811594202
+    }
+  },
+  {
+    "id": "ipad-ipad-a16-yellow-portrait",
+    "family": "iPad",
+    "model": "iPad A16",
+    "color": "Yellow",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-a16-yellow-portrait.png",
+    "maskPath": "Masks/ipad-ipad-a16-yellow-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.09803921568627451,
+      "topLeftY": 0.927536231884058,
+      "topRightX": 0.9014705882352941,
+      "topRightY": 0.927536231884058,
+      "bottomRightX": 0.9014705882352941,
+      "bottomRightY": 0.07246376811594202,
+      "bottomLeftX": 0.09803921568627451,
+      "bottomLeftY": 0.07246376811594202
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-blue-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Blue",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-blue-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-blue-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04961832061068702,
+      "topLeftY": 0.9315789473684211,
+      "topRightX": 0.950381679389313,
+      "topRightY": 0.9315789473684211,
+      "bottomRightX": 0.950381679389313,
+      "bottomRightY": 0.06842105263157894,
+      "bottomLeftX": 0.04961832061068702,
+      "bottomLeftY": 0.06842105263157894
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-purple-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Purple",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-purple-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-purple-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04961832061068702,
+      "topLeftY": 0.9315789473684211,
+      "topRightX": 0.950381679389313,
+      "topRightY": 0.9315789473684211,
+      "bottomRightX": 0.950381679389313,
+      "bottomRightY": 0.06842105263157894,
+      "bottomLeftX": 0.04961832061068702,
+      "bottomLeftY": 0.06842105263157894
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-space-gray-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Space Gray",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-space-gray-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-space-gray-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04961832061068702,
+      "topLeftY": 0.9315789473684211,
+      "topRightX": 0.950381679389313,
+      "topRightY": 0.9315789473684211,
+      "bottomRightX": 0.950381679389313,
+      "bottomRightY": 0.06842105263157894,
+      "bottomLeftX": 0.04961832061068702,
+      "bottomLeftY": 0.06842105263157894
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-starlight-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Starlight",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-starlight-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-starlight-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04961832061068702,
+      "topLeftY": 0.9315789473684211,
+      "topRightX": 0.950381679389313,
+      "topRightY": 0.9315789473684211,
+      "bottomRightX": 0.950381679389313,
+      "bottomRightY": 0.06842105263157894,
+      "bottomLeftX": 0.04961832061068702,
+      "bottomLeftY": 0.06842105263157894
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-blue-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Blue",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-blue-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-blue-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.06842105263157895,
+      "topLeftY": 0.950381679389313,
+      "topRightX": 0.9315789473684211,
+      "topRightY": 0.950381679389313,
+      "bottomRightX": 0.9315789473684211,
+      "bottomRightY": 0.04961832061068705,
+      "bottomLeftX": 0.06842105263157895,
+      "bottomLeftY": 0.04961832061068705
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-purple-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Purple",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-purple-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-purple-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.06842105263157895,
+      "topLeftY": 0.950381679389313,
+      "topRightX": 0.9315789473684211,
+      "topRightY": 0.950381679389313,
+      "bottomRightX": 0.9315789473684211,
+      "bottomRightY": 0.04961832061068705,
+      "bottomLeftX": 0.06842105263157895,
+      "bottomLeftY": 0.04961832061068705
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-space-gray-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Space Gray",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-space-gray-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-space-gray-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.06842105263157895,
+      "topLeftY": 0.950381679389313,
+      "topRightX": 0.9315789473684211,
+      "topRightY": 0.950381679389313,
+      "bottomRightX": 0.9315789473684211,
+      "bottomRightY": 0.04961832061068705,
+      "bottomLeftX": 0.06842105263157895,
+      "bottomLeftY": 0.04961832061068705
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-11-inch-starlight-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 11-inch",
+    "color": "Starlight",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-11-inch-starlight-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-11-inch-starlight-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.06842105263157895,
+      "topLeftY": 0.950381679389313,
+      "topRightX": 0.9315789473684211,
+      "topRightY": 0.950381679389313,
+      "bottomRightX": 0.9315789473684211,
+      "bottomRightY": 0.04961832061068705,
+      "bottomLeftX": 0.06842105263157895,
+      "bottomLeftY": 0.04961832061068705
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-blue-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Blue",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-blue-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-blue-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04161073825503356,
+      "topLeftY": 0.9452173913043478,
+      "topRightX": 0.9583892617449664,
+      "topRightY": 0.9452173913043478,
+      "bottomRightX": 0.9583892617449664,
+      "bottomRightY": 0.05478260869565221,
+      "bottomLeftX": 0.04161073825503356,
+      "bottomLeftY": 0.05478260869565221
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-purple-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Purple",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-purple-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-purple-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04161073825503356,
+      "topLeftY": 0.9452173913043478,
+      "topRightX": 0.9583892617449664,
+      "topRightY": 0.9452173913043478,
+      "bottomRightX": 0.9583892617449664,
+      "bottomRightY": 0.05478260869565221,
+      "bottomLeftX": 0.04161073825503356,
+      "bottomLeftY": 0.05478260869565221
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-space-gray-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Space Gray",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-space-gray-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-space-gray-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04161073825503356,
+      "topLeftY": 0.9452173913043478,
+      "topRightX": 0.9583892617449664,
+      "topRightY": 0.9452173913043478,
+      "bottomRightX": 0.9583892617449664,
+      "bottomRightY": 0.05478260869565221,
+      "bottomLeftX": 0.04161073825503356,
+      "bottomLeftY": 0.05478260869565221
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-starlight-landscape",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Starlight",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-starlight-landscape.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-starlight-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04161073825503356,
+      "topLeftY": 0.9452173913043478,
+      "topRightX": 0.9583892617449664,
+      "topRightY": 0.9452173913043478,
+      "bottomRightX": 0.9583892617449664,
+      "bottomRightY": 0.05478260869565221,
+      "bottomLeftX": 0.04161073825503356,
+      "bottomLeftY": 0.05478260869565221
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-blue-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Blue",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-blue-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-blue-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05478260869565217,
+      "topLeftY": 0.9583892617449664,
+      "topRightX": 0.9452173913043478,
+      "topRightY": 0.9583892617449664,
+      "bottomRightX": 0.9452173913043478,
+      "bottomRightY": 0.041610738255033586,
+      "bottomLeftX": 0.05478260869565217,
+      "bottomLeftY": 0.041610738255033586
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-purple-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Purple",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-purple-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-purple-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05478260869565217,
+      "topLeftY": 0.9583892617449664,
+      "topRightX": 0.9452173913043478,
+      "topRightY": 0.9583892617449664,
+      "bottomRightX": 0.9452173913043478,
+      "bottomRightY": 0.041610738255033586,
+      "bottomLeftX": 0.05478260869565217,
+      "bottomLeftY": 0.041610738255033586
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-space-gray-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Space Gray",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-space-gray-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-space-gray-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05478260869565217,
+      "topLeftY": 0.9583892617449664,
+      "topRightX": 0.9452173913043478,
+      "topRightY": 0.9583892617449664,
+      "bottomRightX": 0.9452173913043478,
+      "bottomRightY": 0.041610738255033586,
+      "bottomLeftX": 0.05478260869565217,
+      "bottomLeftY": 0.041610738255033586
+    }
+  },
+  {
+    "id": "ipad-ipad-air-m4-13-inch-starlight-portrait",
+    "family": "iPad",
+    "model": "iPad Air M4 13-inch",
+    "color": "Starlight",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-air-m4-13-inch-starlight-portrait.png",
+    "maskPath": "Masks/ipad-ipad-air-m4-13-inch-starlight-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05478260869565217,
+      "topLeftY": 0.9583892617449664,
+      "topRightX": 0.9452173913043478,
+      "topRightY": 0.9583892617449664,
+      "bottomRightX": 0.9452173913043478,
+      "bottomRightY": 0.041610738255033586,
+      "bottomLeftX": 0.05478260869565217,
+      "bottomLeftY": 0.041610738255033586
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-11-inch-silver-landscape",
+    "family": "iPad",
+    "model": "iPad Pro M5 11-inch",
+    "color": "Silver",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-11-inch-silver-landscape.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-11-inch-silver-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.041666666666666664,
+      "topLeftY": 0.9436170212765957,
+      "topRightX": 0.9583333333333334,
+      "topRightY": 0.9436170212765957,
+      "bottomRightX": 0.9583333333333334,
+      "bottomRightY": 0.05638297872340425,
+      "bottomLeftX": 0.041666666666666664,
+      "bottomLeftY": 0.05638297872340425
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-11-inch-space-black-landscape",
+    "family": "iPad",
+    "model": "iPad Pro M5 11-inch",
+    "color": "Space Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-11-inch-space-black-landscape.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-11-inch-space-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.041666666666666664,
+      "topLeftY": 0.9436170212765957,
+      "topRightX": 0.9583333333333334,
+      "topRightY": 0.9436170212765957,
+      "bottomRightX": 0.9583333333333334,
+      "bottomRightY": 0.05638297872340425,
+      "bottomLeftX": 0.041666666666666664,
+      "bottomLeftY": 0.05638297872340425
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-11-inch-silver-portrait",
+    "family": "iPad",
+    "model": "iPad Pro M5 11-inch",
+    "color": "Silver",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-11-inch-silver-portrait.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-11-inch-silver-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05638297872340425,
+      "topLeftY": 0.9583333333333334,
+      "topRightX": 0.9436170212765957,
+      "topRightY": 0.9583333333333334,
+      "bottomRightX": 0.9436170212765957,
+      "bottomRightY": 0.04166666666666663,
+      "bottomLeftX": 0.05638297872340425,
+      "bottomLeftY": 0.04166666666666663
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-11-inch-space-black-portrait",
+    "family": "iPad",
+    "model": "iPad Pro M5 11-inch",
+    "color": "Space Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-11-inch-space-black-portrait.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-11-inch-space-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05638297872340425,
+      "topLeftY": 0.9583333333333334,
+      "topRightX": 0.9436170212765957,
+      "topRightY": 0.9583333333333334,
+      "bottomRightX": 0.9436170212765957,
+      "bottomRightY": 0.04166666666666663,
+      "bottomLeftX": 0.05638297872340425,
+      "bottomLeftY": 0.04166666666666663
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-13-inch-silver-landscape",
+    "family": "iPad",
+    "model": "iPad Pro M5 13-inch",
+    "color": "Silver",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-13-inch-silver-landscape.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-13-inch-silver-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04133333333333333,
+      "topLeftY": 0.948695652173913,
+      "topRightX": 0.9586666666666667,
+      "topRightY": 0.948695652173913,
+      "bottomRightX": 0.9586666666666667,
+      "bottomRightY": 0.05130434782608695,
+      "bottomLeftX": 0.04133333333333333,
+      "bottomLeftY": 0.05130434782608695
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-13-inch-space-black-landscape",
+    "family": "iPad",
+    "model": "iPad Pro M5 13-inch",
+    "color": "Space Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-13-inch-space-black-landscape.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-13-inch-space-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.04133333333333333,
+      "topLeftY": 0.948695652173913,
+      "topRightX": 0.9586666666666667,
+      "topRightY": 0.948695652173913,
+      "bottomRightX": 0.9586666666666667,
+      "bottomRightY": 0.05130434782608695,
+      "bottomLeftX": 0.04133333333333333,
+      "bottomLeftY": 0.05130434782608695
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-13-inch-silver-portrait",
+    "family": "iPad",
+    "model": "iPad Pro M5 13-inch",
+    "color": "Silver",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-13-inch-silver-portrait.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-13-inch-silver-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.051304347826086956,
+      "topLeftY": 0.9586666666666667,
+      "topRightX": 0.948695652173913,
+      "topRightY": 0.9586666666666667,
+      "bottomRightX": 0.948695652173913,
+      "bottomRightY": 0.04133333333333333,
+      "bottomLeftX": 0.051304347826086956,
+      "bottomLeftY": 0.04133333333333333
+    }
+  },
+  {
+    "id": "ipad-ipad-pro-m5-13-inch-space-black-portrait",
+    "family": "iPad",
+    "model": "iPad Pro M5 13-inch",
+    "color": "Space Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-pro-m5-13-inch-space-black-portrait.png",
+    "maskPath": "Masks/ipad-ipad-pro-m5-13-inch-space-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.051304347826086956,
+      "topLeftY": 0.9586666666666667,
+      "topRightX": 0.948695652173913,
+      "topRightY": 0.9586666666666667,
+      "bottomRightX": 0.948695652173913,
+      "bottomRightY": 0.04133333333333333,
+      "bottomLeftX": 0.051304347826086956,
+      "bottomLeftY": 0.04133333333333333
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-blue-landscape",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Blue",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-blue-landscape.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-blue-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.05568627450980392,
+      "topLeftY": 0.9179775280898876,
+      "topRightX": 0.9443137254901961,
+      "topRightY": 0.9179775280898876,
+      "bottomRightX": 0.9443137254901961,
+      "bottomRightY": 0.08202247191011236,
+      "bottomLeftX": 0.05568627450980392,
+      "bottomLeftY": 0.08202247191011236
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-purple-landscape",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Purple",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-purple-landscape.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-purple-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.05568627450980392,
+      "topLeftY": 0.9179775280898876,
+      "topRightX": 0.9443137254901961,
+      "topRightY": 0.9179775280898876,
+      "bottomRightX": 0.9443137254901961,
+      "bottomRightY": 0.08202247191011236,
+      "bottomLeftX": 0.05568627450980392,
+      "bottomLeftY": 0.08202247191011236
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-space-gray-landscape",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Space Gray",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-space-gray-landscape.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-space-gray-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.05568627450980392,
+      "topLeftY": 0.9179775280898876,
+      "topRightX": 0.9443137254901961,
+      "topRightY": 0.9179775280898876,
+      "bottomRightX": 0.9443137254901961,
+      "bottomRightY": 0.08202247191011236,
+      "bottomLeftX": 0.05568627450980392,
+      "bottomLeftY": 0.08202247191011236
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-starlight-landscape",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Starlight",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-starlight-landscape.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-starlight-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.05568627450980392,
+      "topLeftY": 0.9179775280898876,
+      "topRightX": 0.9443137254901961,
+      "topRightY": 0.9179775280898876,
+      "bottomRightX": 0.9443137254901961,
+      "bottomRightY": 0.08202247191011236,
+      "bottomLeftX": 0.05568627450980392,
+      "bottomLeftY": 0.08202247191011236
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-blue-portrait",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Blue",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-blue-portrait.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-blue-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.08202247191011236,
+      "topLeftY": 0.9443137254901961,
+      "topRightX": 0.9179775280898876,
+      "topRightY": 0.9443137254901961,
+      "bottomRightX": 0.9179775280898876,
+      "bottomRightY": 0.0556862745098039,
+      "bottomLeftX": 0.08202247191011236,
+      "bottomLeftY": 0.0556862745098039
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-purple-portrait",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Purple",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-purple-portrait.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-purple-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.08202247191011236,
+      "topLeftY": 0.9443137254901961,
+      "topRightX": 0.9179775280898876,
+      "topRightY": 0.9443137254901961,
+      "bottomRightX": 0.9179775280898876,
+      "bottomRightY": 0.0556862745098039,
+      "bottomLeftX": 0.08202247191011236,
+      "bottomLeftY": 0.0556862745098039
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-space-gray-portrait",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Space Gray",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-space-gray-portrait.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-space-gray-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.08202247191011236,
+      "topLeftY": 0.9443137254901961,
+      "topRightX": 0.9179775280898876,
+      "topRightY": 0.9443137254901961,
+      "bottomRightX": 0.9179775280898876,
+      "bottomRightY": 0.0556862745098039,
+      "bottomLeftX": 0.08202247191011236,
+      "bottomLeftY": 0.0556862745098039
+    }
+  },
+  {
+    "id": "ipad-ipad-mini-a17-pro-starlight-portrait",
+    "family": "iPad",
+    "model": "iPad mini A17 Pro",
+    "color": "Starlight",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/ipad-ipad-mini-a17-pro-starlight-portrait.png",
+    "maskPath": "Masks/ipad-ipad-mini-a17-pro-starlight-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.08202247191011236,
+      "topLeftY": 0.9443137254901961,
+      "topRightX": 0.9179775280898876,
+      "topRightY": 0.9443137254901961,
+      "bottomRightX": 0.9179775280898876,
+      "bottomRightY": 0.0556862745098039,
+      "bottomLeftX": 0.08202247191011236,
+      "bottomLeftY": 0.0556862745098039
+    }
+  },
+  {
+    "id": "iphone-iphone-16-black-landscape",
+    "family": "iPhone",
+    "model": "iPhone 16",
+    "color": "Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-16-black-landscape.png",
+    "maskPath": "Masks/iphone-iphone-16-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.03289473684210526,
+      "topLeftY": 0.9337748344370861,
+      "topRightX": 0.9671052631578947,
+      "topRightY": 0.9337748344370861,
+      "bottomRightX": 0.9671052631578947,
+      "bottomRightY": 0.06622516556291391,
+      "bottomLeftX": 0.03289473684210526,
+      "bottomLeftY": 0.06622516556291391
+    }
+  },
+  {
+    "id": "iphone-iphone-16-black-portrait",
+    "family": "iPhone",
+    "model": "iPhone 16",
+    "color": "Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-16-black-portrait.png",
+    "maskPath": "Masks/iphone-iphone-16-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.06622516556291391,
+      "topLeftY": 0.9671052631578947,
+      "topRightX": 0.9337748344370861,
+      "topRightY": 0.9671052631578947,
+      "bottomRightX": 0.9337748344370861,
+      "bottomRightY": 0.03289473684210531,
+      "bottomLeftX": 0.06622516556291391,
+      "bottomLeftY": 0.03289473684210531
+    }
+  },
+  {
+    "id": "iphone-iphone-16-plus-black-landscape",
+    "family": "iPhone",
+    "model": "iPhone 16 Plus",
+    "color": "Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-16-plus-black-landscape.png",
+    "maskPath": "Masks/iphone-iphone-16-plus-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.029292929292929294,
+      "topLeftY": 0.9387755102040817,
+      "topRightX": 0.9707070707070707,
+      "topRightY": 0.9387755102040817,
+      "bottomRightX": 0.9707070707070707,
+      "bottomRightY": 0.061224489795918324,
+      "bottomLeftX": 0.029292929292929294,
+      "bottomLeftY": 0.061224489795918324
+    }
+  },
+  {
+    "id": "iphone-iphone-16-plus-black-portrait",
+    "family": "iPhone",
+    "model": "iPhone 16 Plus",
+    "color": "Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-16-plus-black-portrait.png",
+    "maskPath": "Masks/iphone-iphone-16-plus-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.061224489795918366,
+      "topLeftY": 0.9707070707070707,
+      "topRightX": 0.9387755102040817,
+      "topRightY": 0.9707070707070707,
+      "bottomRightX": 0.9387755102040817,
+      "bottomRightY": 0.02929292929292926,
+      "bottomLeftX": 0.061224489795918366,
+      "bottomLeftY": 0.02929292929292926
+    }
+  },
+  {
+    "id": "iphone-iphone-16-pro-natural-titanium-landscape",
+    "family": "iPhone",
+    "model": "iPhone 16 Pro",
+    "color": "Natural Titanium",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-16-pro-natural-titanium-landscape.png",
+    "maskPath": "Masks/iphone-iphone-16-pro-natural-titanium-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.025,
+      "topLeftY": 0.9466666666666667,
+      "topRightX": 0.975,
+      "topRightY": 0.9466666666666667,
+      "bottomRightX": 0.975,
+      "bottomRightY": 0.053333333333333344,
+      "bottomLeftX": 0.025,
+      "bottomLeftY": 0.053333333333333344
+    }
+  },
+  {
+    "id": "iphone-iphone-16-pro-natural-titanium-portrait",
+    "family": "iPhone",
+    "model": "iPhone 16 Pro",
+    "color": "Natural Titanium",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-16-pro-natural-titanium-portrait.png",
+    "maskPath": "Masks/iphone-iphone-16-pro-natural-titanium-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05333333333333334,
+      "topLeftY": 0.975,
+      "topRightX": 0.9466666666666667,
+      "topRightY": 0.975,
+      "bottomRightX": 0.9466666666666667,
+      "bottomRightY": 0.025000000000000022,
+      "bottomLeftX": 0.05333333333333334,
+      "bottomLeftY": 0.025000000000000022
+    }
+  },
+  {
+    "id": "iphone-iphone-16-pro-max-natural-titanium-landscape",
+    "family": "iPhone",
+    "model": "iPhone 16 Pro Max",
+    "color": "Natural Titanium",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-16-pro-max-natural-titanium-landscape.png",
+    "maskPath": "Masks/iphone-iphone-16-pro-max-natural-titanium-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.022,
+      "topLeftY": 0.9489795918367347,
+      "topRightX": 0.978,
+      "topRightY": 0.9489795918367347,
+      "bottomRightX": 0.978,
+      "bottomRightY": 0.05102040816326525,
+      "bottomLeftX": 0.022,
+      "bottomLeftY": 0.05102040816326525
+    }
+  },
+  {
+    "id": "iphone-iphone-16-pro-max-natural-titanium-portrait",
+    "family": "iPhone",
+    "model": "iPhone 16 Pro Max",
+    "color": "Natural Titanium",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-16-pro-max-natural-titanium-portrait.png",
+    "maskPath": "Masks/iphone-iphone-16-pro-max-natural-titanium-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05102040816326531,
+      "topLeftY": 0.978,
+      "topRightX": 0.9489795918367347,
+      "topRightY": 0.978,
+      "bottomRightX": 0.9489795918367347,
+      "bottomRightY": 0.02200000000000002,
+      "bottomLeftX": 0.05102040816326531,
+      "bottomLeftY": 0.02200000000000002
+    }
+  },
+  {
+    "id": "iphone-iphone-17-black-landscape",
+    "family": "iPhone",
+    "model": "iPhone 17",
+    "color": "Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-17-black-landscape.png",
+    "maskPath": "Masks/iphone-iphone-17-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.025,
+      "topLeftY": 0.9466666666666667,
+      "topRightX": 0.975,
+      "topRightY": 0.9466666666666667,
+      "bottomRightX": 0.975,
+      "bottomRightY": 0.053333333333333344,
+      "bottomLeftX": 0.025,
+      "bottomLeftY": 0.053333333333333344
+    }
+  },
+  {
+    "id": "iphone-iphone-17-black-portrait",
+    "family": "iPhone",
+    "model": "iPhone 17",
+    "color": "Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-17-black-portrait.png",
+    "maskPath": "Masks/iphone-iphone-17-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05333333333333334,
+      "topLeftY": 0.975,
+      "topRightX": 0.9466666666666667,
+      "topRightY": 0.975,
+      "bottomRightX": 0.9466666666666667,
+      "bottomRightY": 0.025000000000000022,
+      "bottomLeftX": 0.05333333333333334,
+      "bottomLeftY": 0.025000000000000022
+    }
+  },
+  {
+    "id": "iphone-iphone-17-pro-silver-landscape",
+    "family": "iPhone",
+    "model": "iPhone 17 Pro",
+    "color": "Silver",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-17-pro-silver-landscape.png",
+    "maskPath": "Masks/iphone-iphone-17-pro-silver-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.025,
+      "topLeftY": 0.9466666666666667,
+      "topRightX": 0.975,
+      "topRightY": 0.9466666666666667,
+      "bottomRightX": 0.975,
+      "bottomRightY": 0.053333333333333344,
+      "bottomLeftX": 0.025,
+      "bottomLeftY": 0.053333333333333344
+    }
+  },
+  {
+    "id": "iphone-iphone-17-pro-silver-portrait",
+    "family": "iPhone",
+    "model": "iPhone 17 Pro",
+    "color": "Silver",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-17-pro-silver-portrait.png",
+    "maskPath": "Masks/iphone-iphone-17-pro-silver-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05333333333333334,
+      "topLeftY": 0.975,
+      "topRightX": 0.9466666666666667,
+      "topRightY": 0.975,
+      "bottomRightX": 0.9466666666666667,
+      "bottomRightY": 0.025000000000000022,
+      "bottomLeftX": 0.05333333333333334,
+      "bottomLeftY": 0.025000000000000022
+    }
+  },
+  {
+    "id": "iphone-iphone-17-pro-max-silver-landscape",
+    "family": "iPhone",
+    "model": "iPhone 17 Pro Max",
+    "color": "Silver",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-17-pro-max-silver-landscape.png",
+    "maskPath": "Masks/iphone-iphone-17-pro-max-silver-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.022,
+      "topLeftY": 0.9489795918367347,
+      "topRightX": 0.978,
+      "topRightY": 0.9489795918367347,
+      "bottomRightX": 0.978,
+      "bottomRightY": 0.05102040816326525,
+      "bottomLeftX": 0.022,
+      "bottomLeftY": 0.05102040816326525
+    }
+  },
+  {
+    "id": "iphone-iphone-17-pro-max-silver-portrait",
+    "family": "iPhone",
+    "model": "iPhone 17 Pro Max",
+    "color": "Silver",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-17-pro-max-silver-portrait.png",
+    "maskPath": "Masks/iphone-iphone-17-pro-max-silver-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.05102040816326531,
+      "topLeftY": 0.978,
+      "topRightX": 0.9489795918367347,
+      "topRightY": 0.978,
+      "bottomRightX": 0.9489795918367347,
+      "bottomRightY": 0.02200000000000002,
+      "bottomLeftX": 0.05102040816326531,
+      "bottomLeftY": 0.02200000000000002
+    }
+  },
+  {
+    "id": "iphone-iphone-air-space-black-landscape",
+    "family": "iPhone",
+    "model": "iPhone Air",
+    "color": "Space Black",
+    "orientation": "landscape",
+    "bezelPath": "Catalog/iphone-iphone-air-space-black-landscape.png",
+    "maskPath": "Masks/iphone-iphone-air-space-black-landscape-screen.png",
+    "quad": {
+      "topLeftX": 0.025,
+      "topLeftY": 0.9565217391304348,
+      "topRightX": 0.975,
+      "topRightY": 0.9565217391304348,
+      "bottomRightX": 0.975,
+      "bottomRightY": 0.04347826086956519,
+      "bottomLeftX": 0.025,
+      "bottomLeftY": 0.04347826086956519
+    }
+  },
+  {
+    "id": "iphone-iphone-air-space-black-portrait",
+    "family": "iPhone",
+    "model": "iPhone Air",
+    "color": "Space Black",
+    "orientation": "portrait",
+    "bezelPath": "Catalog/iphone-iphone-air-space-black-portrait.png",
+    "maskPath": "Masks/iphone-iphone-air-space-black-portrait-screen.png",
+    "quad": {
+      "topLeftX": 0.043478260869565216,
+      "topLeftY": 0.975,
+      "topRightX": 0.9565217391304348,
+      "topRightY": 0.975,
+      "bottomRightX": 0.9565217391304348,
+      "bottomRightY": 0.025000000000000022,
+      "bottomLeftX": 0.043478260869565216,
+      "bottomLeftY": 0.025000000000000022
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-13-inch-midnight-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 13-inch",
+    "color": "Midnight",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-13-inch-midnight-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-13-inch-midnight-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12352941176470589,
+      "topLeftY": 0.8714285714285714,
+      "topRightX": 0.8764705882352941,
+      "topRightY": 0.8714285714285714,
+      "bottomRightX": 0.8764705882352941,
+      "bottomRightY": 0.12857142857142856,
+      "bottomLeftX": 0.12352941176470589,
+      "bottomLeftY": 0.12857142857142856
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-13-inch-silver-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 13-inch",
+    "color": "Silver",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-13-inch-silver-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-13-inch-silver-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12352941176470589,
+      "topLeftY": 0.8714285714285714,
+      "topRightX": 0.8764705882352941,
+      "topRightY": 0.8714285714285714,
+      "bottomRightX": 0.8764705882352941,
+      "bottomRightY": 0.12857142857142856,
+      "bottomLeftX": 0.12352941176470589,
+      "bottomLeftY": 0.12857142857142856
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-13-inch-sky-blue-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 13-inch",
+    "color": "Sky Blue",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-13-inch-sky-blue-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-13-inch-sky-blue-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12352941176470589,
+      "topLeftY": 0.8714285714285714,
+      "topRightX": 0.8764705882352941,
+      "topRightY": 0.8714285714285714,
+      "bottomRightX": 0.8764705882352941,
+      "bottomRightY": 0.12857142857142856,
+      "bottomLeftX": 0.12352941176470589,
+      "bottomLeftY": 0.12857142857142856
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-13-inch-starlight-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 13-inch",
+    "color": "Starlight",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-13-inch-starlight-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-13-inch-starlight-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12352941176470589,
+      "topLeftY": 0.8714285714285714,
+      "topRightX": 0.8764705882352941,
+      "topRightY": 0.8714285714285714,
+      "bottomRightX": 0.8764705882352941,
+      "bottomRightY": 0.12857142857142856,
+      "bottomLeftX": 0.12352941176470589,
+      "bottomLeftY": 0.12857142857142856
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-15-inch-midnight-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 15-inch",
+    "color": "Midnight",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-15-inch-midnight-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-15-inch-midnight-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09293785310734463,
+      "topLeftY": 0.9052173913043479,
+      "topRightX": 0.906497175141243,
+      "topRightY": 0.9052173913043479,
+      "bottomRightX": 0.906497175141243,
+      "bottomRightY": 0.09478260869565214,
+      "bottomLeftX": 0.09293785310734463,
+      "bottomLeftY": 0.09478260869565214
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-15-inch-silver-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 15-inch",
+    "color": "Silver",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-15-inch-silver-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-15-inch-silver-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09293785310734463,
+      "topLeftY": 0.9052173913043479,
+      "topRightX": 0.906497175141243,
+      "topRightY": 0.9052173913043479,
+      "bottomRightX": 0.906497175141243,
+      "bottomRightY": 0.09478260869565214,
+      "bottomLeftX": 0.09293785310734463,
+      "bottomLeftY": 0.09478260869565214
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-15-inch-sky-blue-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 15-inch",
+    "color": "Sky Blue",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-15-inch-sky-blue-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-15-inch-sky-blue-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09293785310734463,
+      "topLeftY": 0.9052173913043479,
+      "topRightX": 0.906497175141243,
+      "topRightY": 0.9052173913043479,
+      "bottomRightX": 0.906497175141243,
+      "bottomRightY": 0.09478260869565214,
+      "bottomLeftX": 0.09293785310734463,
+      "bottomLeftY": 0.09478260869565214
+    }
+  },
+  {
+    "id": "macbook-macbook-air-m5-15-inch-starlight-front",
+    "family": "macBook",
+    "model": "MacBook Air M5 15-inch",
+    "color": "Starlight",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-air-m5-15-inch-starlight-front.png",
+    "maskPath": "Masks/macbook-macbook-air-m5-15-inch-starlight-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09293785310734463,
+      "topLeftY": 0.9052173913043479,
+      "topRightX": 0.906497175141243,
+      "topRightY": 0.9052173913043479,
+      "bottomRightX": 0.906497175141243,
+      "bottomRightY": 0.09478260869565214,
+      "bottomLeftX": 0.09293785310734463,
+      "bottomLeftY": 0.09478260869565214
+    }
+  },
+  {
+    "id": "macbook-macbook-neo-blush-front",
+    "family": "macBook",
+    "model": "MacBook Neo",
+    "color": "Blush",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-neo-blush-front.png",
+    "maskPath": "Masks/macbook-macbook-neo-blush-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12608695652173912,
+      "topLeftY": 0.8585714285714285,
+      "topRightX": 0.8739130434782608,
+      "topRightY": 0.8585714285714285,
+      "bottomRightX": 0.8739130434782608,
+      "bottomRightY": 0.14142857142857146,
+      "bottomLeftX": 0.12608695652173912,
+      "bottomLeftY": 0.14142857142857146
+    }
+  },
+  {
+    "id": "macbook-macbook-neo-citrus-front",
+    "family": "macBook",
+    "model": "MacBook Neo",
+    "color": "Citrus",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-neo-citrus-front.png",
+    "maskPath": "Masks/macbook-macbook-neo-citrus-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12608695652173912,
+      "topLeftY": 0.8585714285714285,
+      "topRightX": 0.8739130434782608,
+      "topRightY": 0.8585714285714285,
+      "bottomRightX": 0.8739130434782608,
+      "bottomRightY": 0.14142857142857146,
+      "bottomLeftX": 0.12608695652173912,
+      "bottomLeftY": 0.14142857142857146
+    }
+  },
+  {
+    "id": "macbook-macbook-neo-indigo-front",
+    "family": "macBook",
+    "model": "MacBook Neo",
+    "color": "Indigo",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-neo-indigo-front.png",
+    "maskPath": "Masks/macbook-macbook-neo-indigo-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12608695652173912,
+      "topLeftY": 0.8585714285714285,
+      "topRightX": 0.8739130434782608,
+      "topRightY": 0.8585714285714285,
+      "bottomRightX": 0.8739130434782608,
+      "bottomRightY": 0.14142857142857146,
+      "bottomLeftX": 0.12608695652173912,
+      "bottomLeftY": 0.14142857142857146
+    }
+  },
+  {
+    "id": "macbook-macbook-neo-silver-front",
+    "family": "macBook",
+    "model": "MacBook Neo",
+    "color": "Silver",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-neo-silver-front.png",
+    "maskPath": "Masks/macbook-macbook-neo-silver-front-screen.png",
+    "quad": {
+      "topLeftX": 0.12608695652173912,
+      "topLeftY": 0.8585714285714285,
+      "topRightX": 0.8739130434782608,
+      "topRightY": 0.8585714285714285,
+      "bottomRightX": 0.8739130434782608,
+      "bottomRightY": 0.14142857142857146,
+      "bottomLeftX": 0.12608695652173912,
+      "bottomLeftY": 0.14142857142857146
+    }
+  },
+  {
+    "id": "macbook-macbook-pro-m5-14-inch-silver-front",
+    "family": "macBook",
+    "model": "MacBook Pro M5 14-inch",
+    "color": "Silver",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-pro-m5-14-inch-silver-front.png",
+    "maskPath": "Masks/macbook-macbook-pro-m5-14-inch-silver-front-screen.png",
+    "quad": {
+      "topLeftX": 0.10829015544041451,
+      "topLeftY": 0.8866141732283465,
+      "topRightX": 0.8917098445595855,
+      "topRightY": 0.8866141732283465,
+      "bottomRightX": 0.8917098445595855,
+      "bottomRightY": 0.11338582677165354,
+      "bottomLeftX": 0.10829015544041451,
+      "bottomLeftY": 0.11338582677165354
+    }
+  },
+  {
+    "id": "macbook-macbook-pro-m5-14-inch-space-black-front",
+    "family": "macBook",
+    "model": "MacBook Pro M5 14-inch",
+    "color": "Space Black",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-pro-m5-14-inch-space-black-front.png",
+    "maskPath": "Masks/macbook-macbook-pro-m5-14-inch-space-black-front-screen.png",
+    "quad": {
+      "topLeftX": 0.10829015544041451,
+      "topLeftY": 0.8866141732283465,
+      "topRightX": 0.8917098445595855,
+      "topRightY": 0.8866141732283465,
+      "bottomRightX": 0.8917098445595855,
+      "bottomRightY": 0.11338582677165354,
+      "bottomLeftX": 0.10829015544041451,
+      "bottomLeftY": 0.11338582677165354
+    }
+  },
+  {
+    "id": "macbook-macbook-pro-m5-16-inch-silver-front",
+    "family": "macBook",
+    "model": "MacBook Pro M5 16-inch",
+    "color": "Silver",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-pro-m5-16-inch-silver-front.png",
+    "maskPath": "Masks/macbook-macbook-pro-m5-16-inch-silver-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09436619718309859,
+      "topLeftY": 0.8933098591549296,
+      "topRightX": 0.9056338028169014,
+      "topRightY": 0.8933098591549296,
+      "bottomRightX": 0.9056338028169014,
+      "bottomRightY": 0.10669014084507045,
+      "bottomLeftX": 0.09436619718309859,
+      "bottomLeftY": 0.10669014084507045
+    }
+  },
+  {
+    "id": "macbook-macbook-pro-m5-16-inch-space-black-front",
+    "family": "macBook",
+    "model": "MacBook Pro M5 16-inch",
+    "color": "Space Black",
+    "orientation": "front",
+    "bezelPath": "Catalog/macbook-macbook-pro-m5-16-inch-space-black-front.png",
+    "maskPath": "Masks/macbook-macbook-pro-m5-16-inch-space-black-front-screen.png",
+    "quad": {
+      "topLeftX": 0.09436619718309859,
+      "topLeftY": 0.8933098591549296,
+      "topRightX": 0.9056338028169014,
+      "topRightY": 0.8933098591549296,
+      "bottomRightX": 0.9056338028169014,
+      "bottomRightY": 0.10669014084507045,
+      "bottomLeftX": 0.09436619718309859,
+      "bottomLeftY": 0.10669014084507045
+    }
+  }
+]

@@ -37,6 +37,7 @@ final class ScreenshotStore: ObservableObject {
     private let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "heif", "tiff", "webp"]
     private var noticeClearTask: Task<Void, Never>?
     private var captureEditorWindowController: NSWindowController?
+    private var captureEditorActionInProgress = false
     private var previewWindowController: NSWindowController?
     private var pinnedWindowControllers: [String: NSWindowController] = [:]
     private var pinnedImages: [String: NSImage] = [:]
@@ -541,19 +542,58 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func copy(_ item: ScreenshotItem) {
-        guard let image = image(for: item) else {
-            return
+        guard let image = image(for: item) else { return }
+        do {
+            try Self.writeImageToPasteboard(image)
+        } catch {
+            errorMessage = error.localizedDescription
+            showNotice(
+                title: "Copy Failed",
+                detail: error.localizedDescription,
+                systemImage: "exclamationmark.triangle",
+                tone: .failure
+            )
+        }
+    }
+
+    func copyEditedImage(_ image: NSImage) {
+        do {
+            try Self.writeImageToPasteboard(image)
+        } catch {
+            errorMessage = error.localizedDescription
+            showNotice(
+                title: "Copy Failed",
+                detail: error.localizedDescription,
+                systemImage: "exclamationmark.triangle",
+                tone: .failure
+            )
+        }
+    }
+
+    private static func writeImageToPasteboard(_ image: NSImage) throws {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw ClipboardImageError.encodeFailed
+        }
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            throw ClipboardImageError.encodeFailed
         }
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([image])
-    }
+        pasteboard.declareTypes([.png, .tiff], owner: nil)
+        let pngWritten = pasteboard.setData(pngData, forType: .png)
+        let tiffWritten: Bool
+        if let tiffData = image.tiffRepresentation {
+            tiffWritten = pasteboard.setData(tiffData, forType: .tiff)
+        } else {
+            tiffWritten = false
+        }
 
-    func copyEditedImage(_ image: NSImage) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.writeObjects([image])
+        guard (pngWritten || tiffWritten),
+              pasteboard.availableType(from: [.png, .tiff]) != nil else {
+            throw ClipboardImageError.writeFailed
+        }
     }
 
     func importDroppedItems(_ providers: [NSItemProvider]) {
@@ -678,25 +718,29 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func finishAnnotatedCapture(_ image: NSImage, destination: CaptureAnnotationDestination) {
+        guard !captureEditorActionInProgress else {
+            return
+        }
+        captureEditorActionInProgress = true
+
         switch destination {
         case .capture(.clipboard):
             do {
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.writeObjects([image])
-                let item = try addTemporaryClipboardImage(image)
+                try Self.writeImageToPasteboard(image)
+                let item = try? addTemporaryClipboardImage(image)
                 closeCaptureEditor(animated: true)
                 showNotice(
                     title: "Copied to Clipboard",
-                    detail: "Visible until the app quits.",
+                    detail: "PNG is in the system clipboard. Use Save if you also need a file.",
                     systemImage: "doc.on.clipboard",
                     tone: .success
                 )
-                selectedItem = item
+                if let item { selectedItem = item }
             } catch {
+                captureEditorActionInProgress = false
                 errorMessage = error.localizedDescription
                 showNotice(
-                    title: "Clipboard History Failed",
+                    title: "Copy Failed",
                     detail: error.localizedDescription,
                     systemImage: "exclamationmark.triangle",
                     tone: .failure
@@ -705,18 +749,19 @@ final class ScreenshotStore: ObservableObject {
         case .capture(.save):
             do {
                 let url = try ScreenshotCaptureService.save(image, in: folderURL, kind: .saved)
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.writeObjects([image])
+                let copiedToClipboard = (try? Self.writeImageToPasteboard(image)) != nil
                 refresh(selecting: url)
                 closeCaptureEditor(animated: true)
                 showNotice(
                     title: "Saved to Library",
-                    detail: "Also copied to Clipboard.",
+                    detail: copiedToClipboard
+                        ? "\(url.lastPathComponent) · also copied to Clipboard."
+                        : "\(url.lastPathComponent)",
                     systemImage: "tray.and.arrow.down",
                     tone: .success
                 )
             } catch {
+                captureEditorActionInProgress = false
                 errorMessage = error.localizedDescription
                 showNotice(
                     title: "Save Failed",
@@ -727,31 +772,30 @@ final class ScreenshotStore: ObservableObject {
             }
         case .edit(let item):
             do {
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.writeObjects([image])
-
                 if item.isTemporary {
                     replaceTemporaryImage(image, item: item, showsNotice: false)
+                    let copiedToClipboard = (try? Self.writeImageToPasteboard(image)) != nil
                     closeCaptureEditor(animated: true)
                     showNotice(
                         title: "Screenshot Updated",
-                        detail: "Updated in memory and copied to Clipboard.",
+                        detail: copiedToClipboard ? "Updated in memory and copied to Clipboard." : "Updated in memory.",
                         systemImage: "square.and.arrow.down",
                         tone: .success
                     )
                 } else {
                     try ImageEditingService.write(image, to: item.url)
+                    let copiedToClipboard = (try? Self.writeImageToPasteboard(image)) != nil
                     refresh(selecting: item.url)
                     closeCaptureEditor(animated: true)
                     showNotice(
                         title: "Screenshot Updated",
-                        detail: "Saved and copied to Clipboard.",
+                        detail: copiedToClipboard ? "Saved and copied to Clipboard." : "Saved.",
                         systemImage: "square.and.arrow.down",
                         tone: .success
                     )
                 }
             } catch {
+                captureEditorActionInProgress = false
                 errorMessage = error.localizedDescription
                 showNotice(
                     title: "Update Failed",
@@ -996,26 +1040,34 @@ final class ScreenshotStore: ObservableObject {
 
     private func showCaptureEditor(image: NSImage, destination: CaptureAnnotationDestination) {
         closeCaptureEditor()
+        captureEditorActionInProgress = false
 
         let session = CaptureAnnotationSession(image: image, destination: destination)
         let contentView = CaptureAnnotationView(store: self, session: session)
         let hostingController = NSHostingController(rootView: contentView)
-        let window = NSWindow(
+        let window = CaptureAnnotationWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 760),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Annotate"
         window.titleVisibility = .hidden
         window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.AnnotationWindow")
-        window.titlebarAppearsTransparent = false
-        window.backgroundColor = .windowBackgroundColor
-        window.isOpaque = true
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        // Keep the full-size transparent titlebar, but never let drags inside the
+        // annotation canvas/crop handles move the whole window.
+        window.isMovableByWindowBackground = false
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.minSize = NSSize(width: 980, height: 620)
         window.contentViewController = hostingController
+        window.onCancel = { [weak self] in
+            self?.closeCaptureEditor(animated: true)
+        }
         window.center()
-        window.isReleasedWhenClosed = false
+        window.isReleasedWhenClosed = true
         window.isRestorable = false
 
         let controller = NSWindowController(window: window)
@@ -1397,6 +1449,30 @@ private struct DroppedImageType {
     let fileExtension: String
 }
 
+private final class CaptureAnnotationWindow: NSWindow {
+    var onCancel: (() -> Void)?
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown, event.keyCode == 53 {
+            onCancel?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        onCancel?()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            onCancel?()
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
 private struct DroppedImagePayload {
     enum Source {
         case file(URL)
@@ -1412,6 +1488,20 @@ private struct DroppedFileData {
     let data: Data
     let fileName: String?
     let fileExtension: String?
+}
+
+private enum ClipboardImageError: LocalizedError {
+    case encodeFailed
+    case writeFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .encodeFailed:
+            return "Could not encode the edited image for the clipboard."
+        case .writeFailed:
+            return "macOS did not accept the edited image into the clipboard."
+        }
+    }
 }
 
 enum CaptureMode {

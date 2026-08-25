@@ -1,5 +1,8 @@
 import AppKit
+import CoreImage
+import ImageIO
 import SwiftUI
+import UniformTypeIdentifiers
 import Vision
 
 struct ImageEditorView: View {
@@ -162,7 +165,6 @@ struct CaptureAnnotationView: View {
     @State private var textValue = "Text"
     @StateObject private var keyboardMonitor = AnnotationKeyboardMonitor()
     @State private var showsBackgroundPanel = false
-
     init(store: ScreenshotStore, session: CaptureAnnotationSession) {
         self.store = store
         self.session = session
@@ -173,21 +175,26 @@ struct CaptureAnnotationView: View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 ZStack(alignment: .bottomTrailing) {
-                    AnnotationCanvasView(
-                        document: document,
-                        tool: tool,
-                        color: activeAnnotationNSColor,
-                        strokeWidth: strokeWidth,
-                        textValue: textValue,
-                        onCancel: {
-                            store.closeCaptureEditor(animated: true)
-                        }
-                    )
-                    .background(AppTheme.contentBackground)
+                    if showsBackgroundPanel {
+                        MockupWorkspaceView(document: document)
+                    } else {
+                        AnnotationCanvasView(
+                            document: document,
+                            tool: tool,
+                            color: activeAnnotationNSColor,
+                            strokeWidth: strokeWidth,
+                            textValue: textValue,
+                            onCancel: {
+                                store.closeCaptureEditor(animated: true)
+                            }
+                        )
+                        .background(AppTheme.contentBackground)
 
-                    liveTextButton
-                        .padding(18)
+                        liveTextButton
+                            .padding(18)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Divider()
 
@@ -195,21 +202,22 @@ struct CaptureAnnotationView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .frame(minHeight: 74, alignment: .top)
-                    .background(AppTheme.toolbarBackground)
+                    .background(.ultraThinMaterial)
                     .layoutPriority(1)
             }
 
             if showsBackgroundPanel {
                 Divider()
-
                 BackgroundInspectorView(document: document)
-                    .frame(width: 248)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .frame(width: 292)
+                    .layoutPriority(2)
             }
         }
-        .frame(minWidth: showsBackgroundPanel ? 1160 : 980, minHeight: 640)
-        .background(AppTheme.windowBackground)
-        .animation(.easeOut(duration: 0.18), value: showsBackgroundPanel)
+        .frame(minWidth: 980, minHeight: 680)
+        .background {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                .ignoresSafeArea()
+        }
         .onExitCommand {
             store.closeCaptureEditor(animated: true)
         }
@@ -220,45 +228,77 @@ struct CaptureAnnotationView: View {
     private var annotationToolbar: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                // Drawing tools
-                toolButton(.arrow, icon: "arrow.up.right", title: "Arrow")
-                toolButton(.line, icon: "line.diagonal", title: "Line")
-                toolButton(.rectangle, icon: "square", title: "Rectangle")
-                toolButton(.oval, icon: "oval", title: "Oval")
-                toolButton(.marker, icon: "highlighter", title: "Marker")
-                toolButton(.text, icon: "textformat", title: "Text")
-                toolButton(.mosaic, icon: "square.grid.3x3.fill", title: "Mosaic")
+                if !showsBackgroundPanel {
+                    toolButton(.arrow, icon: "arrow.up.right", title: "Arrow")
+                    toolButton(.line, icon: "line.diagonal", title: "Line")
+                    toolButton(.rectangle, icon: "square", title: "Rectangle")
+                    toolButton(.oval, icon: "oval", title: "Oval")
+                    toolButton(.marker, icon: "highlighter", title: "Marker")
+                    toolButton(.text, icon: "textformat", title: "Text")
+                    toolButton(.mosaic, icon: "square.grid.3x3.fill", title: "Mosaic")
 
-                Divider().frame(height: 20)
+                    Divider().frame(height: 20)
 
-                // Crop
-                Button {
-                    document.resetCrop()
-                } label: {
-                    toolbarIcon("crop")
+                    Button {
+                        document.resetCrop()
+                    } label: {
+                        toolbarIcon("crop")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(!document.isCropAdjusted)
+                    .help("Reset Crop")
+
+                    Divider().frame(height: 20)
+
+                    Button {
+                        document.rotate(clockwise: false)
+                    } label: {
+                        toolbarIcon("rotate.left")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Rotate Left")
+
+                    Button {
+                        document.rotate(clockwise: true)
+                    } label: {
+                        toolbarIcon("rotate.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Rotate Right")
+
+                    Button {
+                        document.flipHorizontal()
+                    } label: {
+                        toolbarIcon("arrow.left.and.right.righttriangle.left.righttriangle.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Flip Horizontal")
+
+                    Spacer(minLength: 8)
+
+                    Button {
+                        document.undo()
+                    } label: {
+                        toolbarIcon("arrow.uturn.backward")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(document.annotations.isEmpty)
+                    .keyboardShortcut("z", modifiers: .command)
+                    .help("Undo")
+
+                    Divider().frame(height: 20)
+                } else {
+                    Text("Mockup Preview")
+                        .font(AppTypography.helper.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!document.isCropAdjusted)
-                .help("Reset Crop")
 
-                Spacer(minLength: 8)
-
-                // History
-                Button {
-                    document.undo()
-                } label: {
-                    toolbarIcon("arrow.uturn.backward")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(document.annotations.isEmpty)
-                .keyboardShortcut("z", modifiers: .command)
-                .help("Undo")
-
-                Divider().frame(height: 20)
-
-                // Actions
                 Button {
                     pinCurrentImage()
                 } label: {
@@ -278,40 +318,78 @@ struct CaptureAnnotationView: View {
                 .keyboardShortcut(.cancelAction)
                 .help("Close")
 
+                if showsSecondarySaveAction {
+                    Button {
+                        saveToLibrary()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "tray.and.arrow.down")
+                            Text(secondarySaveTitle)
+                                .font(AppTypography.helper.weight(.semibold))
+                        }
+                        .frame(width: actionButtonWidth)
+                        .frame(minHeight: toolbarButtonContentSize.height)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Save the current result as a file in the Screenshot Manager library")
+                }
+
                 Button {
                     finishCapture()
                 } label: {
-                    toolbarIcon(finishActionIcon)
+                    HStack(spacing: 6) {
+                        Image(systemName: finishActionIcon)
+                        Text("\(finishActionTitle)  ↩")
+                            .font(AppTypography.helper.weight(.semibold))
+                    }
+                    .frame(width: actionButtonWidth)
+                    .frame(minHeight: toolbarButtonContentSize.height)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .keyboardShortcut(.defaultAction)
-                .help(finishActionHelp)
+                .help("\(finishActionHelp) — Return")
             }
 
             HStack(spacing: 10) {
-                colorPicker
+                if showsBackgroundPanel {
+                    backgroundButton
 
-                Divider().frame(height: 20)
+                    Text("Back to Annotate")
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
 
-                strokeWidthControl
+                    Spacer()
 
-                Divider().frame(height: 20)
+                    Text(captureHint)
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    colorPicker
 
-                backgroundButton
+                    Divider().frame(height: 20)
 
-                if tool == .text {
-                    TextField("Text", text: $textValue)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 220)
+                    strokeWidthControl
+
+                    Divider().frame(height: 20)
+
+                    backgroundButton
+
+                    if tool == .text {
+                        TextField("Text", text: $textValue)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 220)
+                    }
+
+                    Text(captureHint)
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Spacer()
                 }
-
-                Text(captureHint)
-                    .font(AppTypography.helper)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer()
             }
         }
     }
@@ -338,6 +416,14 @@ struct CaptureAnnotationView: View {
         }
     }
 
+    private var finishActionTitle: String {
+        switch session.destination {
+        case .capture(.clipboard): return "Copy"
+        case .capture(.save): return "Save"
+        case .edit: return "Update"
+        }
+    }
+
     private var finishActionHelp: String {
         switch session.destination {
         case .capture(.clipboard):
@@ -347,6 +433,28 @@ struct CaptureAnnotationView: View {
         case .edit:
             return "Update this screenshot"
         }
+    }
+
+    private var showsSecondarySaveAction: Bool {
+        switch session.destination {
+        case .capture(.save):
+            return false
+        case .capture(.clipboard), .edit:
+            return true
+        }
+    }
+
+    private var secondarySaveTitle: String {
+        switch session.destination {
+        case .edit:
+            return "Save Copy"
+        case .capture:
+            return "Save"
+        }
+    }
+
+    private func saveToLibrary() {
+        store.finishAnnotatedCapture(document.renderedImage(), destination: .capture(.save))
     }
 
     private func toolButton(_ value: AnnotationTool, icon: String, title: String) -> some View {
@@ -362,6 +470,8 @@ struct CaptureAnnotationView: View {
         .help(title)
         .background(tool == value ? Color.accentColor.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
     }
+
+    private var actionButtonWidth: CGFloat { 108 }
 
     private var toolbarButtonContentSize: CGSize {
         CGSize(width: 28, height: 26)
@@ -425,8 +535,8 @@ struct CaptureAnnotationView: View {
             Image(systemName: "lineweight")
                 .foregroundStyle(.secondary)
 
-            Slider(value: $strokeWidth, in: 2...18, step: 1)
-                .frame(width: 112)
+            SmoothValueSlider(value: $strokeWidth, range: 2...18, step: 1)
+                .frame(width: 112, height: 18)
 
             Text("\(Int(strokeWidth))")
                 .font(AppTypography.helper.monospacedDigit())
@@ -438,19 +548,22 @@ struct CaptureAnnotationView: View {
 
     private var backgroundButton: some View {
         Button {
-            if !showsBackgroundPanel, document.backgroundSettings.style == .none {
-                updateBackgroundSettings { settings in
-                    settings.style = .ocean
-                }
-            }
             showsBackgroundPanel.toggle()
         } label: {
             toolbarIcon("photo.on.rectangle")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .background(showsBackgroundPanel || document.backgroundSettings.style != .none ? Color.accentColor.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
-        .help("Background")
+        .background(
+            showsBackgroundPanel
+                || document.backgroundSettings.style != .none
+                || document.selectedPhotoMockup != nil
+                || document.selectedDeviceBezel != nil
+                ? Color.accentColor.opacity(0.14)
+                : Color.clear,
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .help(showsBackgroundPanel ? "Back to Annotate" : "Mockup & Background")
     }
 
     private var liveTextButton: some View {
@@ -523,7 +636,8 @@ struct CaptureAnnotationView: View {
                 return nil
             }
 
-            let returnShouldFinish = isReturn && (flags.isEmpty || flags == .numericPad || flags.contains(.command))
+            let blockingModifiers = flags.intersection([.shift, .option, .control])
+            let returnShouldFinish = isReturn && blockingModifiers.isEmpty
 
             guard returnShouldFinish,
                   let store,
@@ -568,117 +682,330 @@ private final class AnnotationKeyboardMonitor: ObservableObject {
 
 private struct BackgroundInspectorView: View {
     @ObservedObject var document: AnnotationDocument
+    @StateObject private var photoLibrary = PhotoMockupLibrary.shared
+    @State private var mockupError: String?
+    @State private var expandedFamily: PhotoMockupFamily?
+    @State private var expandedModelKey: String?
 
-    private let swatchColumns = [
-        GridItem(.adaptive(minimum: 52), spacing: 8)
-    ]
+    private let swatchColumns = [GridItem(.adaptive(minimum: 38), spacing: 7)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Background")
-                    .font(AppTypography.sectionTitle)
-
-                Spacer()
-
-                Button {
-                    updateSettings { settings in
-                        settings.style = .none
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("Mockup")
+                        .font(AppTypography.sectionTitle)
+                    Spacer()
+                    Button {
+                        document.selectedPhotoMockup = nil
+                        document.selectedDeviceBezel = nil
+                        document.resetMockupTransform()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .frame(width: 22, height: 22)
                     }
-                } label: {
-                    Image(systemName: "slash.circle")
-                        .frame(width: 24, height: 24)
+                    .buttonStyle(.borderless)
+                    .help("Remove device")
                 }
-                .buttonStyle(.borderless)
-                .help("Disable Background")
-            }
 
-            BackgroundPreviewView(document: document)
-                .frame(height: 152)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Device")
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Style")
-                    .font(AppTypography.helper)
-                    .foregroundStyle(.secondary)
+                    ForEach(PhotoMockupFamily.allCases) { family in
+                        familySection(family)
+                    }
 
-                LazyVGrid(columns: swatchColumns, alignment: .leading, spacing: 8) {
-                    backgroundSwatch(.none)
-
-                    ForEach(AnnotationBackgroundStyle.backgroundCases) { style in
-                        backgroundSwatch(style)
+                    if let mockupError {
+                        Text(mockupError)
+                            .font(AppTypography.helper)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+
+                if document.hasSelectedMockup {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Transform")
+                                .font(AppTypography.helper)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Reset") {
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    document.resetMockupTransform()
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .font(AppTypography.metadata)
+                            .disabled(document.mockupTransform.isIdentity)
+                        }
+
+                        mockupTransformSlider(
+                            title: "Zoom",
+                            value: Binding(
+                                get: { document.mockupTransform.zoom },
+                                set: { newValue in updateMockupTransform { $0.zoom = newValue } }
+                            ),
+                            range: 0.5...1.8,
+                            step: 0.01,
+                            display: { "\(Int(round($0 * 100)))%" }
+                        )
+
+                        mockupTransformSlider(
+                            title: "Tilt",
+                            value: Binding(
+                                get: { document.mockupTransform.tiltDegrees },
+                                set: { newValue in updateMockupTransform { $0.tiltDegrees = newValue } }
+                            ),
+                            range: -25...25,
+                            step: 1,
+                            display: { "\(Int(round($0)))°" }
+                        )
+
+                        mockupTransformSlider(
+                            title: "X",
+                            value: Binding(
+                                get: { document.mockupTransform.offsetX },
+                                set: { newValue in updateMockupTransform { $0.offsetX = newValue } }
+                            ),
+                            range: -0.35...0.35,
+                            step: 0.01,
+                            display: { "\(Int(round($0 * 100)))%" }
+                        )
+
+                        mockupTransformSlider(
+                            title: "Y",
+                            value: Binding(
+                                get: { document.mockupTransform.offsetY },
+                                set: { newValue in updateMockupTransform { $0.offsetY = newValue } }
+                            ),
+                            range: -0.35...0.35,
+                            step: 0.01,
+                            display: { "\(Int(round($0 * 100)))%" }
+                        )
+                    }
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Background")
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: swatchColumns, alignment: .leading, spacing: 7) {
+                        backgroundSwatch(.none)
+                        ForEach(AnnotationBackgroundStyle.backgroundCases) { style in
+                            backgroundSwatch(style)
+                        }
+                    }
+                }
+
+                if document.backgroundSettings.style != .none {
+                    inspectorSlider(title: "Spacing", value: Binding(
+                        get: { document.backgroundSettings.padding },
+                        set: { newValue in updateSettings { $0.padding = newValue } }
+                    ), range: 0...180, step: 4)
+
+                    inspectorSlider(title: "Corners", value: Binding(
+                        get: { document.backgroundSettings.cornerRadius },
+                        set: { newValue in updateSettings { $0.cornerRadius = newValue } }
+                    ), range: 0...64, step: 2)
+                }
             }
-
-            Divider()
-
-            inspectorSlider(
-                title: "Padding",
-                value: Binding(
-                    get: { document.backgroundSettings.padding },
-                    set: { newValue in
-                        updateSettings { settings in
-                            settings.padding = newValue
-                        }
-                    }
-                ),
-                range: 16...220,
-                step: 4,
-                icon: "arrow.up.left.and.arrow.down.right"
-            )
-
-            inspectorSlider(
-                title: "Corners",
-                value: Binding(
-                    get: { document.backgroundSettings.cornerRadius },
-                    set: { newValue in
-                        updateSettings { settings in
-                            settings.cornerRadius = newValue
-                        }
-                    }
-                ),
-                range: 0...64,
-                step: 2,
-                icon: "rectangle.roundedtop"
-            )
-
-            Toggle(
-                isOn: Binding(
-                    get: { document.backgroundSettings.autoBalance },
-                    set: { newValue in
-                        updateSettings { settings in
-                            settings.autoBalance = newValue
-                        }
-                    }
-                )
-            ) {
-                Label("Auto-balance", systemImage: "wand.and.stars")
-            }
-            .toggleStyle(.checkbox)
-
-            Spacer(minLength: 0)
+            .padding(14)
         }
-        .padding(16)
-        .background(AppTheme.panelBackground)
+        .background {
+            VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
+        }
+    }
+
+    @ViewBuilder
+    private func familySection(_ family: PhotoMockupFamily) -> some View {
+        let models = photoLibrary.models(in: family)
+        let isExpanded = expandedFamily == family
+
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    mockupError = nil
+                    expandedFamily = isExpanded ? nil : family
+                    expandedModelKey = nil
+                }
+            } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: family.systemImage)
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 26)
+                        .foregroundStyle(.secondary)
+                    Text(family.title)
+                        .font(AppTypography.helper.weight(.semibold))
+                    Spacer(minLength: 0)
+                    if models.isEmpty {
+                        Text("—")
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 36)
+                .contentShape(Rectangle())
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.045)))
+            }
+            .buttonStyle(.plain)
+            .disabled(models.isEmpty)
+
+            if isExpanded {
+                ForEach(models, id: \.self) { model in
+                    modelSection(family: family, model: model)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func modelSection(family: PhotoMockupFamily, model: String) -> some View {
+        let key = "\(family.rawValue)|\(model)"
+        let variants = photoLibrary.variants(family: family, model: model)
+        let isExpanded = expandedModelKey == key
+        let selectedPreset = document.selectedPhotoMockup.flatMap { photoLibrary.preset(id: $0.presetID) }
+        let isSelectedModel = selectedPreset?.family == family && selectedPreset?.model == model
+
+        VStack(alignment: .leading, spacing: 3) {
+            Button {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    mockupError = nil
+                    expandedModelKey = isExpanded ? nil : key
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 12)
+                    Text(model)
+                        .font(AppTypography.helper.weight(isSelectedModel ? .semibold : .regular))
+                        .foregroundStyle(isSelectedModel ? Color.accentColor : Color.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    if isSelectedModel {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .padding(.leading, 13)
+                .padding(.trailing, 8)
+                .frame(height: 32)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ForEach(variants) { preset in
+                    photoPresetButton(preset)
+                        .padding(.leading, 24)
+                }
+            }
+        }
+    }
+
+    private func photoPresetButton(_ preset: PhotoMockupPreset) -> some View {
+        let isSelected = document.selectedPhotoMockup?.presetID == preset.id
+
+        return Button {
+            mockupError = nil
+            guard let asset = photoLibrary.resolve(preset) else {
+                mockupError = "This device resource is missing from the app bundle."
+                return
+            }
+            document.selectedDeviceBezel = nil
+            document.selectedPhotoMockup = asset
+        } label: {
+            HStack(spacing: 7) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
+                    Image(systemName: preset.orientation == .landscape ? "rectangle" : "rectangle.portrait")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                }
+                .frame(width: 28, height: 25)
+
+                Text(preset.variantTitle.isEmpty ? "Default" : preset.variantTitle)
+                    .font(AppTypography.metadata)
+                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 7)
+            .frame(height: 31)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func mockupTransformSlider(
+        title: String,
+        value: Binding<CGFloat>,
+        range: ClosedRange<CGFloat>,
+        step: CGFloat,
+        display: @escaping (CGFloat) -> String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(title)
+                    .font(AppTypography.helper)
+                Spacer()
+                Text(display(value.wrappedValue))
+                    .font(AppTypography.metadata.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 42, alignment: .trailing)
+            }
+            SmoothValueSlider(value: value, range: range, step: step)
+                .frame(height: 18)
+        }
+    }
+
+    private func updateMockupTransform(_ update: (inout MockupTransformSettings) -> Void) {
+        var settings = document.mockupTransform
+        update(&settings)
+        document.mockupTransform = settings
     }
 
     private func backgroundSwatch(_ style: AnnotationBackgroundStyle) -> some View {
-        Button {
-            updateSettings { settings in
-                settings.style = style
-            }
-        } label: {
+        Button { updateSettings { $0.style = style } } label: {
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(style.swatch)
-
+                RoundedRectangle(cornerRadius: 8).fill(style.swatch)
                 if style == .none {
-                    Image(systemName: "slash")
-                        .font(.system(size: 14, weight: .semibold))
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 34)
+            .frame(height: 38)
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
@@ -691,31 +1018,20 @@ private struct BackgroundInspectorView: View {
         .help(style.title)
     }
 
-    private func inspectorSlider(
-        title: String,
-        value: Binding<CGFloat>,
-        range: ClosedRange<CGFloat>,
-        step: CGFloat,
-        icon: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 7) {
-                Image(systemName: icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-
-                Text(title)
-                    .font(AppTypography.helper)
-
+    private func inspectorSlider(title: String, value: Binding<CGFloat>, range: ClosedRange<CGFloat>, step: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(title).font(AppTypography.helper)
                 Spacer()
-
                 Text("\(Int(value.wrappedValue))")
-                    .font(AppTypography.metadata)
+                    .font(AppTypography.metadata.monospacedDigit())
                     .foregroundStyle(.secondary)
+                    .frame(minWidth: 42, alignment: .trailing)
             }
-
-            Slider(value: value, in: range, step: step)
+            SmoothValueSlider(value: value, range: range, step: step)
+                .frame(height: 18)
                 .disabled(document.backgroundSettings.autoBalance)
+                .opacity(document.backgroundSettings.autoBalance ? 0.45 : 1)
         }
     }
 
@@ -726,24 +1042,191 @@ private struct BackgroundInspectorView: View {
     }
 }
 
-private struct BackgroundPreviewView: View {
+private struct MockupWorkspaceView: View {
     @ObservedObject var document: AnnotationDocument
+    @StateObject private var renderer = MockupPreviewRenderer()
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(AppTheme.imageWellBackground)
+        VStack(spacing: 0) {
+            HStack(spacing: 7) {
+                Text("Preview")
+                    .font(AppTypography.sectionTitle)
 
-            Image(nsImage: document.renderedImage())
-                .resizable()
-                .scaledToFit()
-                .padding(14)
+                if let scene = document.selectedPhotoMockup {
+                    Text(scene.name)
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if let bezel = document.selectedDeviceBezel {
+                    Text(bezel.name)
+                        .font(AppTypography.helper)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 38)
+            .background(.ultraThinMaterial)
+
+            Divider()
+
+            GeometryReader { proxy in
+                let transform = document.mockupTransform
+                let horizontalOffset = transform.offsetX * proxy.size.width * 0.72
+                let verticalOffset = -transform.offsetY * proxy.size.height * 0.72
+
+                ZStack {
+                    if document.backgroundSettings.style != .none {
+                        RoundedRectangle(
+                            cornerRadius: min(max(document.backgroundSettings.cornerRadius * 0.45, 10), 30),
+                            style: .continuous
+                        )
+                        .fill(document.backgroundSettings.style.swatch)
+                        .padding(22)
+                    }
+
+                    if let previewImage = renderer.image {
+                        Image(nsImage: previewImage)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .padding(30)
+                            .scaleEffect(transform.zoom)
+                            .rotationEffect(.degrees(transform.tiltDegrees))
+                            .offset(x: horizontalOffset, y: verticalOffset)
+                            .compositingGroup()
+                    } else {
+                        Image(nsImage: document.image)
+                            .resizable()
+                            .interpolation(.medium)
+                            .scaledToFit()
+                            .padding(34)
+                            .opacity(0.72)
+                    }
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+            }
+            .background {
+                VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(AppTheme.softBorder, lineWidth: 1)
+        .onAppear {
+            renderer.schedule(document, delayNanoseconds: 20_000_000)
         }
+        .onChange(of: document.selectedPhotoMockup) { _, _ in
+            renderer.schedule(document, delayNanoseconds: 20_000_000)
+        }
+        .onChange(of: document.selectedDeviceBezel) { _, _ in
+            renderer.schedule(document, delayNanoseconds: 20_000_000)
+        }
+        .onChange(of: document.cropRect) { _, _ in
+            renderer.schedule(document, delayNanoseconds: 20_000_000)
+        }
+        .onDisappear {
+            renderer.cancel()
+        }
+    }
+}
+
+@MainActor
+private final class MockupPreviewRenderer: ObservableObject {
+    @Published private(set) var image: NSImage?
+    private var renderTask: Task<Void, Never>?
+
+    func schedule(_ document: AnnotationDocument, delayNanoseconds: UInt64 = 35_000_000) {
+        renderTask?.cancel()
+        renderTask = Task { [weak self, weak document] in
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard !Task.isCancelled,
+                  let self,
+                  let document else {
+                return
+            }
+
+            self.image = autoreleasepool {
+                document.renderedMockupBasePreviewImage(maxPixelSize: 1400)
+            }
+        }
+    }
+
+    func cancel() {
+        renderTask?.cancel()
+        renderTask = nil
+    }
+
+    deinit {
+        renderTask?.cancel()
+    }
+}
+
+
+private struct SmoothValueSlider: View {
+    @Binding var value: CGFloat
+    let range: ClosedRange<CGFloat>
+    let step: CGFloat
+
+    @State private var isDragging = false
+
+    private var fraction: CGFloat {
+        let span = max(range.upperBound - range.lowerBound, 0.0001)
+        return min(max((value - range.lowerBound) / span, 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let thumbDiameter: CGFloat = isDragging ? 15 : 13
+            let usableWidth = max(proxy.size.width - thumbDiameter, 1)
+            let thumbX = thumbDiameter / 2 + usableWidth * fraction
+
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(0.11))
+                    .frame(height: 5)
+
+                Capsule(style: .continuous)
+                    .fill(Color.accentColor.opacity(isDragging ? 0.95 : 0.82))
+                    .frame(width: max(5, thumbX), height: 5)
+
+                Circle()
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .overlay {
+                        Circle()
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.6)
+                    }
+                    .shadow(color: Color.black.opacity(isDragging ? 0.28 : 0.20), radius: isDragging ? 3.5 : 2.5, y: 1)
+                    .frame(width: thumbDiameter, height: thumbDiameter)
+                    .position(x: thumbX, y: proxy.size.height / 2)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        isDragging = true
+                        let clampedX = min(max(gesture.location.x - thumbDiameter / 2, 0), usableWidth)
+                        let rawFraction = clampedX / usableWidth
+                        let rawValue = range.lowerBound + rawFraction * (range.upperBound - range.lowerBound)
+                        let stepped: CGFloat
+                        if step > 0 {
+                            let steps = ((rawValue - range.lowerBound) / step).rounded()
+                            stepped = range.lowerBound + steps * step
+                        } else {
+                            stepped = rawValue
+                        }
+                        value = min(max(stepped, range.lowerBound), range.upperBound)
+                    }
+                    .onEnded { _ in
+                        withAnimation(.easeOut(duration: 0.12)) {
+                            isDragging = false
+                        }
+                    }
+            )
+        }
+        .frame(minHeight: 18)
+        .animation(.easeOut(duration: 0.12), value: isDragging)
     }
 }
 
@@ -795,10 +1278,13 @@ private enum AnnotationColor: String, CaseIterable, Identifiable {
 
 @MainActor
 private final class AnnotationDocument: ObservableObject {
-    let image: NSImage
+    @Published var image: NSImage
     @Published var annotations: [ImageAnnotation] = []
     @Published var cropRect: NSRect
     @Published var backgroundSettings = AnnotationBackgroundSettings()
+    @Published var mockupTransform = MockupTransformSettings()
+    @Published var selectedPhotoMockup: PhotoMockupAsset?
+    @Published var selectedDeviceBezel: ImportedDeviceBezel?
     @Published var isTextRecognitionEnabled = false
     @Published var isRecognizingText = false
     @Published var recognizedTextRegions: [RecognizedTextRegion] = []
@@ -817,9 +1303,116 @@ private final class AnnotationDocument: ObservableObject {
         annotations.removeLast()
     }
 
+    func rotate(clockwise: Bool) {
+        let sourceSize = image.size
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return }
+
+        let transform = NSAffineTransform()
+        if clockwise {
+            transform.translateX(by: sourceSize.height, yBy: 0)
+            transform.rotate(byDegrees: 90)
+        } else {
+            transform.translateX(by: 0, yBy: sourceSize.width)
+            transform.rotate(byDegrees: -90)
+        }
+
+        applyGeometryTransform(
+            newImage: ImageEditingService.rotate(image, clockwise: clockwise),
+            transform: transform
+        )
+    }
+
+    func flipHorizontal() {
+        let sourceSize = image.size
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return }
+
+        let transform = NSAffineTransform()
+        transform.translateX(by: sourceSize.width, yBy: 0)
+        transform.scaleX(by: -1, yBy: 1)
+        applyGeometryTransform(
+            newImage: ImageEditingService.flipHorizontal(image),
+            transform: transform
+        )
+    }
+
+    private func applyGeometryTransform(newImage: NSImage, transform: NSAffineTransform) {
+        let newBounds = NSRect(origin: .zero, size: newImage.size)
+        let newCrop = Self.transformedRect(cropRect, using: transform).intersection(newBounds)
+        let newAnnotations = annotations.map { $0.transformed(using: transform) }
+
+        image = newImage
+        cropRect = newCrop.isEmpty ? newBounds : newCrop
+        annotations = newAnnotations
+
+        textRecognitionGeneration = UUID()
+        isRecognizingText = false
+        recognizedTextRegions.removeAll()
+        if isTextRecognitionEnabled {
+            recognizeText(generation: textRecognitionGeneration)
+        }
+    }
+
+    private static func transformedRect(_ rect: NSRect, using transform: NSAffineTransform) -> NSRect {
+        let points = [
+            NSPoint(x: rect.minX, y: rect.minY),
+            NSPoint(x: rect.maxX, y: rect.minY),
+            NSPoint(x: rect.maxX, y: rect.maxY),
+            NSPoint(x: rect.minX, y: rect.maxY)
+        ].map(transform.transform)
+        guard let first = points.first else { return .zero }
+        let minX = points.dropFirst().reduce(first.x) { min($0, $1.x) }
+        let maxX = points.dropFirst().reduce(first.x) { max($0, $1.x) }
+        let minY = points.dropFirst().reduce(first.y) { min($0, $1.y) }
+        let maxY = points.dropFirst().reduce(first.y) { max($0, $1.y) }
+        return NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
     func renderedImage() -> NSImage {
         let contentImage = renderedContentImage()
-        return backgroundSettings.renderedImage(wrapping: contentImage)
+        let photoProduct = selectedPhotoMockup?.renderedImage(wrapping: contentImage)
+        let rawProductImage = photoProduct ?? selectedDeviceBezel?.renderedImage(wrapping: contentImage) ?? contentImage
+        let productImage = hasSelectedMockup ? mockupTransform.renderedImage(wrapping: rawProductImage) : rawProductImage
+        return backgroundSettings.renderedImage(
+            wrapping: productImage,
+            preserveTransparentEdges: selectedPhotoMockup != nil || selectedDeviceBezel != nil
+        )
+    }
+
+    func renderedMockupBasePreviewImage(maxPixelSize: Int) -> NSImage {
+        let contentImage = Self.resizedForPreview(renderedContentImage(), maxPixelSize: maxPixelSize)
+        let photoProduct = selectedPhotoMockup?.renderedImage(
+            wrapping: contentImage,
+            maxPixelSize: maxPixelSize
+        )
+        let legacyProduct = selectedDeviceBezel?.renderedImage(wrapping: contentImage)
+        let rawProductImage = photoProduct ?? legacyProduct ?? contentImage
+        return Self.resizedForPreview(rawProductImage, maxPixelSize: maxPixelSize)
+    }
+
+    private static func resizedForPreview(_ image: NSImage, maxPixelSize: Int) -> NSImage {
+        let sourceSize = image.size
+        let longSide = max(sourceSize.width, sourceSize.height)
+        let limit = CGFloat(max(maxPixelSize, 1))
+        guard longSide > limit, sourceSize.width > 0, sourceSize.height > 0 else {
+            return image
+        }
+
+        let scale = limit / longSide
+        let outputSize = NSSize(
+            width: max(1, floor(sourceSize.width * scale)),
+            height: max(1, floor(sourceSize.height * scale))
+        )
+        let output = NSImage(size: outputSize)
+        output.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(
+            in: NSRect(origin: .zero, size: outputSize),
+            from: NSRect(origin: .zero, size: sourceSize),
+            operation: .copy,
+            fraction: 1
+        )
+        output.unlockFocus()
+        return output
     }
 
     private func renderedContentImage() -> NSImage {
@@ -843,6 +1436,14 @@ private final class AnnotationDocument: ObservableObject {
 
         output.unlockFocus()
         return output
+    }
+
+    var hasSelectedMockup: Bool {
+        selectedPhotoMockup != nil || selectedDeviceBezel != nil
+    }
+
+    func resetMockupTransform() {
+        mockupTransform = MockupTransformSettings()
     }
 
     func resetCrop() {
@@ -1041,13 +1642,82 @@ private enum TextRecognitionService {
     }
 }
 
+private struct MockupTransformSettings: Equatable {
+    var zoom: CGFloat = 1.0
+    var tiltDegrees: CGFloat = 0
+    var offsetX: CGFloat = 0
+    var offsetY: CGFloat = 0
+
+    var isIdentity: Bool {
+        abs(zoom - 1) < 0.0001 &&
+        abs(tiltDegrees) < 0.0001 &&
+        abs(offsetX) < 0.0001 &&
+        abs(offsetY) < 0.0001
+    }
+
+    func renderedImage(wrapping image: NSImage) -> NSImage {
+        guard !isIdentity else { return image }
+
+        let sourceSize = image.size
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return image }
+
+        let clampedZoom = min(max(zoom, 0.45), 1.8)
+        let radians = tiltDegrees * .pi / 180
+        let cosA = abs(cos(radians))
+        let sinA = abs(sin(radians))
+        let scaledWidth = sourceSize.width * clampedZoom
+        let scaledHeight = sourceSize.height * clampedZoom
+        let rotatedWidth = scaledWidth * cosA + scaledHeight * sinA
+        let rotatedHeight = scaledWidth * sinA + scaledHeight * cosA
+
+        let shiftX = offsetX * sourceSize.width
+        let shiftY = offsetY * sourceSize.height
+        let outputSize = NSSize(
+            width: max(sourceSize.width, rotatedWidth + abs(shiftX) * 2),
+            height: max(sourceSize.height, rotatedHeight + abs(shiftY) * 2)
+        )
+        let output = NSImage(size: outputSize)
+        output.lockFocus()
+
+        guard let context = NSGraphicsContext.current?.cgContext else {
+            output.unlockFocus()
+            return image
+        }
+
+        context.saveGState()
+        context.interpolationQuality = .high
+        context.translateBy(
+            x: outputSize.width / 2 + shiftX,
+            y: outputSize.height / 2 + shiftY
+        )
+        context.rotate(by: radians)
+        context.scaleBy(x: clampedZoom, y: clampedZoom)
+
+        let drawRect = NSRect(
+            x: -sourceSize.width / 2,
+            y: -sourceSize.height / 2,
+            width: sourceSize.width,
+            height: sourceSize.height
+        )
+        image.draw(
+            in: drawRect,
+            from: NSRect(origin: .zero, size: sourceSize),
+            operation: .sourceOver,
+            fraction: 1
+        )
+        context.restoreGState()
+        output.unlockFocus()
+        return output
+    }
+}
+
 private struct AnnotationBackgroundSettings: Equatable {
     var style: AnnotationBackgroundStyle = .none
-    var padding: CGFloat = 72
+    var padding: CGFloat = 28
     var cornerRadius: CGFloat = 18
     var autoBalance = false
 
-    func renderedImage(wrapping image: NSImage) -> NSImage {
+    func renderedImage(wrapping image: NSImage, preserveTransparentEdges: Bool = false) -> NSImage {
         guard style != .none else {
             return image
         }
@@ -1071,25 +1741,34 @@ private struct AnnotationBackgroundSettings: Equatable {
         output.lockFocus()
         style.drawBackground(in: outputRect)
 
-        let imagePath = NSBezierPath(roundedRect: imageRect, xRadius: radius, yRadius: radius)
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.24)
-        shadow.shadowBlurRadius = 18
-        shadow.shadowOffset = NSSize(width: 0, height: -5)
-        shadow.set()
-        NSColor.windowBackgroundColor.setFill()
-        imagePath.fill()
-        NSGraphicsContext.restoreGraphicsState()
+        if preserveTransparentEdges {
+            image.draw(
+                in: imageRect,
+                from: NSRect(origin: .zero, size: imageSize),
+                operation: .sourceOver,
+                fraction: 1
+            )
+        } else {
+            let imagePath = NSBezierPath(roundedRect: imageRect, xRadius: radius, yRadius: radius)
+            NSGraphicsContext.saveGraphicsState()
+            let shadow = NSShadow()
+            shadow.shadowColor = NSColor.black.withAlphaComponent(0.24)
+            shadow.shadowBlurRadius = 18
+            shadow.shadowOffset = NSSize(width: 0, height: -5)
+            shadow.set()
+            NSColor.windowBackgroundColor.setFill()
+            imagePath.fill()
+            NSGraphicsContext.restoreGraphicsState()
 
-        NSGraphicsContext.saveGraphicsState()
-        imagePath.addClip()
-        image.draw(in: imageRect, from: NSRect(origin: .zero, size: imageSize), operation: .copy, fraction: 1)
-        NSGraphicsContext.restoreGraphicsState()
+            NSGraphicsContext.saveGraphicsState()
+            imagePath.addClip()
+            image.draw(in: imageRect, from: NSRect(origin: .zero, size: imageSize), operation: .copy, fraction: 1)
+            NSGraphicsContext.restoreGraphicsState()
 
-        NSColor.black.withAlphaComponent(0.14).setStroke()
-        imagePath.lineWidth = 1
-        imagePath.stroke()
+            NSColor.black.withAlphaComponent(0.14).setStroke()
+            imagePath.lineWidth = 1
+            imagePath.stroke()
+        }
 
         output.unlockFocus()
         return output
@@ -1111,6 +1790,1014 @@ private struct AnnotationBackgroundSettings: Equatable {
 
         let shortSide = min(imageSize.width, imageSize.height)
         return max(18, min(shortSide * 0.045, 56))
+    }
+}
+
+private struct NormalizedPhotoQuad: Codable, Equatable, Hashable, Sendable {
+    let topLeftX: CGFloat, topLeftY: CGFloat
+    let topRightX: CGFloat, topRightY: CGFloat
+    let bottomRightX: CGFloat, bottomRightY: CGFloat
+    let bottomLeftX: CGFloat, bottomLeftY: CGFloat
+
+    func points(width: CGFloat, height: CGFloat) -> (CGPoint, CGPoint, CGPoint, CGPoint) {
+        (CGPoint(x: topLeftX * width, y: topLeftY * height), CGPoint(x: topRightX * width, y: topRightY * height), CGPoint(x: bottomRightX * width, y: bottomRightY * height), CGPoint(x: bottomLeftX * width, y: bottomLeftY * height))
+    }
+}
+
+private enum PhotoMockupFamily: String, Codable, CaseIterable, Identifiable, Sendable {
+    case macBook
+    case iPhone
+    case iPad
+    case appleWatch
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .macBook: return "MacBook"
+        case .iPhone: return "iPhone"
+        case .iPad: return "iPad"
+        case .appleWatch: return "Apple Watch"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .macBook: return "laptopcomputer"
+        case .iPhone: return "iphone"
+        case .iPad: return "ipad"
+        case .appleWatch: return "applewatch"
+        }
+    }
+}
+
+private enum PhotoMockupOrientation: String, Codable, Sendable {
+    case portrait
+    case landscape
+    case front
+
+    var title: String {
+        switch self {
+        case .portrait: return "Portrait"
+        case .landscape: return "Landscape"
+        case .front: return "Front"
+        }
+    }
+}
+
+private struct PhotoMockupPreset: Identifiable, Codable, Hashable, Sendable {
+    let id: String
+    let family: PhotoMockupFamily
+    let model: String
+    let color: String
+    let orientation: PhotoMockupOrientation
+    let bezelPath: String
+    let maskPath: String
+    let quad: NormalizedPhotoQuad
+
+    var compactTitle: String { model }
+    var subtitle: String {
+        let details = [color, orientation == .front ? nil : orientation.title].compactMap { $0 }
+        return details.isEmpty ? model : "\(model) · \(details.joined(separator: " · "))"
+    }
+    var variantTitle: String {
+        let showsOrientation = family == .iPhone || family == .iPad
+        let orientationTitle = showsOrientation && orientation != .front ? orientation.title : nil
+        return [color, orientationTitle].compactMap { $0 }.joined(separator: " · ")
+    }
+    var systemImage: String { family.systemImage }
+    var sourcePageURL: URL? { URL(string: "https://developer.apple.com/design/resources/") }
+}
+
+private enum PhotoMockupCatalog {
+    static func load() -> [PhotoMockupPreset] {
+        guard let root = Bundle.main.resourceURL else { return [] }
+        let url = root
+            .appending(path: "DeviceBezels", directoryHint: .isDirectory)
+            .appending(path: "catalog.json")
+        guard let data = try? Data(contentsOf: url),
+              let presets = try? JSONDecoder().decode([PhotoMockupPreset].self, from: data) else {
+            return []
+        }
+        return presets
+    }
+}
+
+private enum PhotoMockupOverlayStyle: String, Codable, Sendable { case none, dynamicIsland }
+
+private struct PhotoMockupAsset: Identifiable, Codable, Equatable, Sendable {
+    private static let renderContext = CIContext(options: [.cacheIntermediates: false])
+
+    let id: UUID
+    let presetID: String
+    let name: String
+    let fileURL: URL
+    let screenMaskURL: URL
+    let quad: NormalizedPhotoQuad
+    let visibleBounds: CGRect?
+    let screenCornerRadius: CGFloat
+    let overlayStyle: PhotoMockupOverlayStyle
+    let sourcePageURL: URL?
+    let credit: String
+
+    func renderedImage(wrapping screenshot: NSImage, maxPixelSize: Int? = nil) -> NSImage? {
+        let photoCI: CIImage
+        let maskCI: CIImage
+        if let maxPixelSize {
+            let options: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
+                  let maskSource = CGImageSourceCreateWithURL(screenMaskURL as CFURL, nil),
+                  let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
+                  let maskThumbnail = CGImageSourceCreateThumbnailAtIndex(maskSource, 0, options as CFDictionary) else { return nil }
+            photoCI = CIImage(cgImage: thumbnail)
+            maskCI = CIImage(cgImage: maskThumbnail)
+        } else {
+            guard let original = CIImage(contentsOf: fileURL, options: [.applyOrientationProperty: true]),
+                  let mask = CIImage(contentsOf: screenMaskURL, options: [.applyOrientationProperty: true]) else { return nil }
+            photoCI = original
+            maskCI = mask
+        }
+
+        guard let screenshotCG = screenshot.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let extent = photoCI.extent.integral
+        guard extent.width > 1, extent.height > 1 else { return nil }
+        let p = quad.points(width: extent.width, height: extent.height)
+        let tl=p.0, tr=p.1, br=p.2, bl=p.3
+        let targetWidth=max(hypot(tr.x-tl.x,tr.y-tl.y),hypot(br.x-bl.x,br.y-bl.y))
+        let targetHeight=max(hypot(tl.x-bl.x,tl.y-bl.y),hypot(tr.x-br.x,tr.y-br.y))
+        guard targetWidth > 4, targetHeight > 4 else { return nil }
+        let screenshotCI=CIImage(cgImage:screenshotCG)
+        let fitted=Self.aspectFillCanvas(source:screenshotCI,targetAspect:targetWidth/targetHeight)
+
+        // Bleed the screenshot slightly underneath the physical bezel. Apple's PNG
+        // aperture edges are anti-aliased, so mapping exactly to the transparent-pixel
+        // boundary can leave a thin visible seam even when the aspect ratio is correct.
+        let center = CGPoint(
+            x: (tl.x + tr.x + br.x + bl.x) / 4,
+            y: (tl.y + tr.y + br.y + bl.y) / 4
+        )
+        let overscanScale: CGFloat = 1.012
+        func overscanned(_ point: CGPoint) -> CGPoint {
+            CGPoint(
+                x: center.x + (point.x - center.x) * overscanScale,
+                y: center.y + (point.y - center.y) * overscanScale
+            )
+        }
+        let renderTL = overscanned(tl)
+        let renderTR = overscanned(tr)
+        let renderBR = overscanned(br)
+        let renderBL = overscanned(bl)
+
+        guard let perspective=CIFilter(name:"CIPerspectiveTransform") else { return nil }
+        perspective.setValue(fitted,forKey:kCIInputImageKey)
+        perspective.setValue(CIVector(cgPoint:renderTL),forKey:"inputTopLeft")
+        perspective.setValue(CIVector(cgPoint:renderTR),forKey:"inputTopRight")
+        perspective.setValue(CIVector(cgPoint:renderBR),forKey:"inputBottomRight")
+        perspective.setValue(CIVector(cgPoint:renderBL),forKey:"inputBottomLeft")
+        guard let warped = perspective.outputImage else { return nil }
+        // Keep the screenshot underneath the bezel, but clip it with a mask extracted
+        // from the bezel's enclosed transparent display aperture. This preserves the
+        // exact rounded display corners while preventing the screenshot from leaking
+        // into the transparent canvas outside the physical device.
+        let screenLayer = warped.cropped(to: extent)
+        let normalizedMask = maskCI
+            .transformed(by: CGAffineTransform(
+                scaleX: extent.width / max(maskCI.extent.width, 1),
+                y: extent.height / max(maskCI.extent.height, 1)
+            ))
+            .cropped(to: extent)
+        let transparent = CIImage(color: .clear).cropped(to: extent)
+        let clippedScreen = screenLayer.applyingFilter(
+            "CIBlendWithMask",
+            parameters: [
+                kCIInputBackgroundImageKey: transparent,
+                kCIInputMaskImageKey: normalizedMask
+            ]
+        )
+        let composite = photoCI.composited(over: clippedScreen).cropped(to: extent)
+        let renderExtent: CGRect
+        if let visibleBounds {
+            renderExtent = CGRect(
+                x: extent.minX + visibleBounds.minX * extent.width,
+                y: extent.minY + visibleBounds.minY * extent.height,
+                width: visibleBounds.width * extent.width,
+                height: visibleBounds.height * extent.height
+            ).intersection(extent).integral
+        } else {
+            renderExtent = extent
+        }
+        guard renderExtent.width > 1, renderExtent.height > 1,
+              let cgOutput=Self.renderContext.createCGImage(composite,from:renderExtent) else { return nil }
+        let output=NSImage(cgImage:cgOutput,size:NSSize(width:renderExtent.width,height:renderExtent.height))
+        if overlayStyle != .none {
+            output.lockFocus()
+            NSColor.black.setFill()
+            switch overlayStyle {
+            case .dynamicIsland:
+                let islandRect = NSRect(
+                    x: extent.width * 0.405 - renderExtent.minX,
+                    y: extent.height * 0.928 - renderExtent.minY,
+                    width: extent.width * 0.190,
+                    height: extent.height * 0.024
+                )
+                NSBezierPath(
+                    roundedRect: islandRect,
+                    xRadius: islandRect.height / 2,
+                    yRadius: islandRect.height / 2
+                ).fill()
+            case .none:
+                break
+            }
+            output.unlockFocus()
+        }
+        return output
+    }
+
+    func thumbnailImage(maxPixelSize:Int)->NSImage? {
+        guard let source=CGImageSourceCreateWithURL(fileURL as CFURL,nil) else { return nil }
+        let options:[CFString:Any]=[kCGImageSourceShouldCache:false,kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:maxPixelSize,kCGImageSourceCreateThumbnailWithTransform:true]
+        guard let image=CGImageSourceCreateThumbnailAtIndex(source,0,options as CFDictionary) else { return nil }
+        return NSImage(cgImage:image,size:NSSize(width:image.width,height:image.height))
+    }
+
+    private static func aspectFillCanvas(source: CIImage, targetAspect: CGFloat) -> CIImage {
+        let sourceExtent = source.extent.integral
+        guard sourceExtent.width > 0, sourceExtent.height > 0, targetAspect > 0 else { return source }
+        let normalized = source.transformed(by: CGAffineTransform(
+            translationX: -sourceExtent.minX,
+            y: -sourceExtent.minY
+        ))
+        let sourceAspect = sourceExtent.width / sourceExtent.height
+        let targetSize: CGSize
+        if sourceAspect > targetAspect {
+            targetSize = CGSize(width: sourceExtent.height * targetAspect, height: sourceExtent.height)
+        } else {
+            targetSize = CGSize(width: sourceExtent.width, height: sourceExtent.width / targetAspect)
+        }
+        let targetRect = CGRect(origin: .zero, size: targetSize)
+        let scale = max(targetSize.width / sourceExtent.width, targetSize.height / sourceExtent.height)
+        let scaled = normalized.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let scaledExtent = scaled.extent
+        return scaled.transformed(by: CGAffineTransform(
+            translationX: (targetSize.width - scaledExtent.width) / 2 - scaledExtent.minX,
+            y: (targetSize.height - scaledExtent.height) / 2 - scaledExtent.minY
+        )).cropped(to: targetRect)
+    }
+}
+
+@MainActor
+private final class PhotoMockupLibrary: ObservableObject {
+    static let shared = PhotoMockupLibrary()
+
+    @Published private(set) var assets: [PhotoMockupAsset]
+    @Published private(set) var presets: [PhotoMockupPreset]
+
+    private init() {
+        assets = []
+        presets = PhotoMockupCatalog.load()
+    }
+
+    func models(in family: PhotoMockupFamily) -> [String] {
+        Array(Set(presets.filter { $0.family == family }.map(\.model))).sorted()
+    }
+
+    func variants(family: PhotoMockupFamily, model: String) -> [PhotoMockupPreset] {
+        presets
+            .filter { $0.family == family && $0.model == model }
+            .sorted { lhs, rhs in
+                if lhs.orientation.rawValue != rhs.orientation.rawValue {
+                    return lhs.orientation.rawValue < rhs.orientation.rawValue
+                }
+                return lhs.color.localizedCaseInsensitiveCompare(rhs.color) == .orderedAscending
+            }
+    }
+
+    func preset(id: String) -> PhotoMockupPreset? {
+        presets.first { $0.id == id }
+    }
+
+    func asset(for preset: PhotoMockupPreset) -> PhotoMockupAsset? {
+        assets.first { $0.presetID == preset.id }
+    }
+
+    func resolve(_ preset: PhotoMockupPreset) -> PhotoMockupAsset? {
+        if let existing = asset(for: preset) { return existing }
+        guard let asset = Self.makeOfficialAsset(preset) else { return nil }
+        assets.append(asset)
+        return asset
+    }
+
+    func preloadAll() async { }
+
+    nonisolated private static func makeOfficialAsset(_ preset: PhotoMockupPreset) -> PhotoMockupAsset? {
+        let resourceRoot = Bundle.main.resourceURL
+            ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources", isDirectory: true)
+        let deviceRoot = resourceRoot.appendingPathComponent("DeviceBezels", isDirectory: true)
+        let sourceURL = deviceRoot.appendingPathComponent(preset.bezelPath)
+        let maskURL = deviceRoot.appendingPathComponent(preset.maskPath)
+
+        // catalog.json is loaded from the same DeviceBezels directory. Selection is
+        // deliberately non-installing and non-throwing: use the bundled Apple assets
+        // in place instead of copying/re-validating them on every click.
+        guard FileManager.default.fileExists(atPath: sourceURL.path),
+              FileManager.default.fileExists(atPath: maskURL.path) else {
+            return nil
+        }
+
+        return PhotoMockupAsset(
+            id: UUID(),
+            presetID: preset.id,
+            name: preset.subtitle,
+            fileURL: sourceURL,
+            screenMaskURL: maskURL,
+            quad: preset.quad,
+            visibleBounds: nil,
+            screenCornerRadius: 0,
+            overlayStyle: .none,
+            sourcePageURL: preset.sourcePageURL,
+            credit: "Apple Product Bezels"
+        )
+    }
+}
+
+private enum ProductRenderIsolation {
+    struct Prepared: Sendable {
+        let quad: NormalizedPhotoQuad
+        let visibleBounds: CGRect
+    }
+
+    enum IsolationError: LocalizedError {
+        case unreadableImage
+        case couldNotEncode
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadableImage: return "Could not load the device product render."
+            case .couldNotEncode: return "Could not prepare the transparent device mockup."
+            }
+        }
+    }
+
+    static func prepare(
+        sourceURL: URL,
+        destinationURL: URL,
+        sourceCrop: CGRect,
+        screenQuad: NormalizedPhotoQuad,
+        backgroundTolerance: Int,
+        screenCornerRadius: CGFloat = 0,
+        hardwareNotchSourceURL: URL? = nil
+    ) throws -> Prepared {
+        guard let source = CGImageSourceCreateWithURL(sourceURL as CFURL, nil),
+              let sourceImage = CGImageSourceCreateImageAtIndex(
+                source,
+                0,
+                [kCGImageSourceShouldCache: false] as CFDictionary
+              ) else {
+            throw IsolationError.unreadableImage
+        }
+
+        let sourceWidth = sourceImage.width
+        let sourceHeight = sourceImage.height
+        let normalizedCrop = sourceCrop.intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard normalizedCrop.width > 0, normalizedCrop.height > 0 else {
+            throw IsolationError.unreadableImage
+        }
+
+        let pixelCrop = CGRect(
+            x: normalizedCrop.minX * CGFloat(sourceWidth),
+            y: (1 - normalizedCrop.maxY) * CGFloat(sourceHeight),
+            width: normalizedCrop.width * CGFloat(sourceWidth),
+            height: normalizedCrop.height * CGFloat(sourceHeight)
+        ).integral
+
+        guard let croppedImage = sourceImage.cropping(to: pixelCrop),
+              croppedImage.width > 1,
+              croppedImage.height > 1 else {
+            throw IsolationError.unreadableImage
+        }
+
+        let width = croppedImage.width
+        let height = croppedImage.height
+        let bytesPerRow = width * 4
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+
+        let rendered = pixels.withUnsafeMutableBytes { raw -> Bool in
+            guard let context = CGContext(
+                data: raw.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            ) else { return false }
+            context.interpolationQuality = .high
+            context.draw(croppedImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard rendered else { throw IsolationError.unreadableImage }
+
+        func remap(_ x: CGFloat, _ y: CGFloat) -> (CGFloat, CGFloat) {
+            (
+                (x - normalizedCrop.minX) / normalizedCrop.width,
+                (y - normalizedCrop.minY) / normalizedCrop.height
+            )
+        }
+
+        let tl = remap(screenQuad.topLeftX, screenQuad.topLeftY)
+        let tr = remap(screenQuad.topRightX, screenQuad.topRightY)
+        let br = remap(screenQuad.bottomRightX, screenQuad.bottomRightY)
+        let bl = remap(screenQuad.bottomLeftX, screenQuad.bottomLeftY)
+        let preparedQuad = NormalizedPhotoQuad(
+            topLeftX: tl.0, topLeftY: tl.1,
+            topRightX: tr.0, topRightY: tr.1,
+            bottomRightX: br.0, bottomRightY: br.1,
+            bottomLeftX: bl.0, bottomLeftY: bl.1
+        )
+
+        func rgb(at index: Int) -> (Int, Int, Int) {
+            let offset = index * 4
+            return (Int(pixels[offset]), Int(pixels[offset + 1]), Int(pixels[offset + 2]))
+        }
+
+        let cornerIndices = [0, width - 1, (height - 1) * width, height * width - 1]
+        let cornerAlphas = cornerIndices.map { Int(pixels[$0 * 4 + 3]) }
+        let sourceAlreadyTransparent = cornerAlphas.allSatisfy { $0 <= 12 }
+        let cornerColors = cornerIndices.map(rgb)
+        let background = (
+            cornerColors.map(\.0).reduce(0, +) / cornerColors.count,
+            cornerColors.map(\.1).reduce(0, +) / cornerColors.count,
+            cornerColors.map(\.2).reduce(0, +) / cornerColors.count
+        )
+
+        func isBackground(_ pixelIndex: Int) -> Bool {
+            let (r, g, b) = rgb(at: pixelIndex)
+            return abs(r - background.0) <= backgroundTolerance
+                && abs(g - background.1) <= backgroundTolerance
+                && abs(b - background.2) <= backgroundTolerance
+        }
+
+        if !sourceAlreadyTransparent {
+            var visited = [UInt8](repeating: 0, count: width * height)
+            var queue = [Int]()
+            queue.reserveCapacity(width * 2 + height * 2)
+
+            func enqueue(_ x: Int, _ y: Int) {
+                guard x >= 0, x < width, y >= 0, y < height else { return }
+                let index = y * width + x
+                guard visited[index] == 0, isBackground(index) else { return }
+                visited[index] = 1
+                queue.append(index)
+            }
+
+            for x in 0..<width {
+                enqueue(x, 0)
+                enqueue(x, height - 1)
+            }
+            for y in 0..<height {
+                enqueue(0, y)
+                enqueue(width - 1, y)
+            }
+
+            var head = 0
+            while head < queue.count {
+                let index = queue[head]
+                head += 1
+                pixels[index * 4 + 3] = 0
+                let x = index % width
+                let y = index / width
+                enqueue(x - 1, y)
+                enqueue(x + 1, y)
+                enqueue(x, y - 1)
+                enqueue(x, y + 1)
+            }
+        }
+
+        // Official Apple bezel PNGs already have a transparent display aperture and
+        // include the real notch / camera hardware. Preserve those pixels exactly.
+        // Only synthesize an aperture for legacy opaque source renders.
+        if !sourceAlreadyTransparent {
+            pixels.withUnsafeMutableBytes { raw in
+            guard let context = CGContext(
+                data: raw.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            ) else { return }
+
+            let p = preparedQuad.points(width: CGFloat(width), height: CGFloat(height))
+            let screenRect = CGRect(
+                x: min(p.0.x, p.3.x),
+                y: min(p.2.y, p.3.y),
+                width: max(p.1.x, p.2.x) - min(p.0.x, p.3.x),
+                height: max(p.0.y, p.1.y) - min(p.2.y, p.3.y)
+            )
+            let radius = min(
+                min(screenRect.width, screenRect.height) / 2,
+                screenCornerRadius * CGFloat(min(width, height))
+            )
+            let path = CGPath(
+                roundedRect: screenRect,
+                cornerWidth: radius,
+                cornerHeight: radius,
+                transform: nil
+            )
+                        // The screen aperture comes directly from the official Apple PSD bounds.
+            context.saveGState()
+            context.setShouldAntialias(true)
+            context.setBlendMode(.clear)
+                        context.addPath(path)
+            context.fillPath()
+            context.restoreGState()
+
+            // Real camera housing pixels extracted from an official Apple product reference.
+            // No rounded-rectangle or custom-drawn notch is used here.
+            if let hardwareNotchSourceURL,
+               let notchSource = CGImageSourceCreateWithURL(hardwareNotchSourceURL as CFURL, nil),
+               let notchImage = CGImageSourceCreateImageAtIndex(notchSource, 0, nil) {
+                let notchWidth = screenRect.width * 0.157
+                let notchHeight = notchWidth * CGFloat(notchImage.height) / CGFloat(notchImage.width)
+                // The reference housing overlaps the top bezel slightly and only
+                // descends into the active display, so it remains visually connected
+                // to the hardware instead of becoming an isolated pill in the image.
+                let notchRect = CGRect(
+                    x: screenRect.midX - notchWidth / 2,
+                    y: screenRect.maxY - notchHeight * 0.977,
+                    width: notchWidth,
+                    height: notchHeight
+                )
+                context.saveGState()
+                context.interpolationQuality = .high
+                context.setBlendMode(.normal)
+                context.draw(notchImage, in: notchRect)
+                context.restoreGState()
+            }
+            }
+        }
+        // Trim large empty transparent margins when presenting/rendering. Keep a
+        // very small breathing room so shadows and hardware edges are not clipped.
+        var minX = width
+        var minY = height
+        var maxX = -1
+        var maxY = -1
+        for y in 0..<height {
+            for x in 0..<width {
+                let alpha = pixels[y * bytesPerRow + x * 4 + 3]
+                guard alpha > 8 else { continue }
+                minX = min(minX, x)
+                minY = min(minY, y)
+                maxX = max(maxX, x)
+                maxY = max(maxY, y)
+            }
+        }
+
+        let visibleBounds: CGRect
+        if maxX >= minX, maxY >= minY {
+            let margin = max(4, Int(CGFloat(max(width, height)) * 0.018))
+            let x0 = max(0, minX - margin)
+            let y0 = max(0, minY - margin)
+            let x1 = min(width - 1, maxX + margin)
+            let y1 = min(height - 1, maxY + margin)
+            visibleBounds = CGRect(
+                x: CGFloat(x0) / CGFloat(width),
+                y: CGFloat(height - 1 - y1) / CGFloat(height),
+                width: CGFloat(x1 - x0 + 1) / CGFloat(width),
+                height: CGFloat(y1 - y0 + 1) / CGFloat(height)
+            )
+        } else {
+            visibleBounds = CGRect(x: 0, y: 0, width: 1, height: 1)
+        }
+
+        var outputImage: CGImage?
+        pixels.withUnsafeMutableBytes { raw in
+            let context = CGContext(
+                data: raw.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            )
+            outputImage = context?.makeImage()
+        }
+
+        guard let outputImage,
+              let destination = CGImageDestinationCreateWithURL(
+                destinationURL as CFURL,
+                UTType.png.identifier as CFString,
+                1,
+                nil
+              ) else {
+            throw IsolationError.couldNotEncode
+        }
+        CGImageDestinationAddImage(destination, outputImage, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            throw IsolationError.couldNotEncode
+        }
+
+        return Prepared(quad: preparedQuad, visibleBounds: visibleBounds)
+    }
+}
+
+private enum PhotoMockupScreenDetector {
+    enum DetectionError:LocalizedError { case noScreenFound; var errorDescription:String? { "Could not detect the device screen in this mockup photo." } }
+    static func detectScreenQuad(in url:URL,expectedAspect:CGFloat) throws -> NormalizedPhotoQuad {
+        let request=VNDetectRectanglesRequest(); request.maximumObservations=30; request.minimumConfidence=0.42; request.minimumSize=0.08; request.quadratureTolerance=35
+        let handler=VNImageRequestHandler(url:url,options:[:]); try handler.perform([request])
+        guard let observations=request.results,!observations.isEmpty else { throw DetectionError.noScreenFound }
+        func dist(_ a:CGPoint,_ b:CGPoint)->CGFloat { hypot(a.x-b.x,a.y-b.y) }
+        let scored=observations.compactMap { obs -> (VNRectangleObservation,CGFloat)? in
+            let width=(dist(obs.topLeft,obs.topRight)+dist(obs.bottomLeft,obs.bottomRight))/2
+            let height=(dist(obs.topLeft,obs.bottomLeft)+dist(obs.topRight,obs.bottomRight))/2
+            guard width>0.02,height>0.02 else { return nil }
+            let aspect=width/height, penalty=abs(log(max(aspect,0.001)/max(expectedAspect,0.001))), area=obs.boundingBox.width*obs.boundingBox.height
+            let center=CGPoint(x:obs.boundingBox.midX,y:obs.boundingBox.midY), centerDistance=hypot(center.x-0.5,center.y-0.5)
+            return (obs,area*exp(-2.6*penalty)*max(0.45,1-centerDistance*0.65))
+        }
+        guard let best=scored.max(by:{$0.1<$1.1})?.0 else { throw DetectionError.noScreenFound }
+        let center = CGPoint(
+            x: (best.topLeft.x + best.topRight.x + best.bottomRight.x + best.bottomLeft.x) / 4,
+            y: (best.topLeft.y + best.topRight.y + best.bottomRight.y + best.bottomLeft.y) / 4
+        )
+        func inset(_ point: CGPoint) -> CGPoint {
+            CGPoint(
+                x: point.x + (center.x - point.x) * 0.035,
+                y: point.y + (center.y - point.y) * 0.035
+            )
+        }
+        let tl = inset(best.topLeft), tr = inset(best.topRight), br = inset(best.bottomRight), bl = inset(best.bottomLeft)
+        return NormalizedPhotoQuad(topLeftX:tl.x,topLeftY:tl.y,topRightX:tr.x,topRightY:tr.y,bottomRightX:br.x,bottomRightY:br.y,bottomLeftX:bl.x,bottomLeftY:bl.y)
+    }
+}
+
+private struct ImportedDeviceBezel: Identifiable, Codable, Equatable {
+    let id: UUID
+    let name: String
+    let fileURL: URL
+    let screenX: CGFloat
+    let screenY: CGFloat
+    let screenWidth: CGFloat
+    let screenHeight: CGFloat
+
+    var normalizedScreenRect: NSRect {
+        NSRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
+    }
+
+    func renderedImage(wrapping screenshot: NSImage) -> NSImage? {
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
+              let bezelCGImage = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCache: false] as CFDictionary) else {
+            return nil
+        }
+
+        let width = bezelCGImage.width
+        let height = bezelCGImage.height
+        guard width > 0, height > 0 else {
+            return nil
+        }
+
+        let outputSize = NSSize(width: width, height: height)
+        let output = NSImage(size: outputSize)
+        let screenRect = NSRect(
+            x: normalizedScreenRect.minX * outputSize.width,
+            y: normalizedScreenRect.minY * outputSize.height,
+            width: normalizedScreenRect.width * outputSize.width,
+            height: normalizedScreenRect.height * outputSize.height
+        )
+
+        output.lockFocus()
+        defer { output.unlockFocus() }
+
+        NSGraphicsContext.current?.imageInterpolation = .high
+        let screenshotSourceRect = Self.aspectFillSourceRect(
+            sourceSize: screenshot.size,
+            targetSize: screenRect.size
+        )
+        screenshot.draw(
+            in: screenRect,
+            from: screenshotSourceRect,
+            operation: .copy,
+            fraction: 1
+        )
+
+        let bezelImage = NSImage(cgImage: bezelCGImage, size: outputSize)
+        bezelImage.draw(
+            in: NSRect(origin: .zero, size: outputSize),
+            from: NSRect(origin: .zero, size: outputSize),
+            operation: .sourceOver,
+            fraction: 1
+        )
+
+        return output
+    }
+
+    func thumbnailImage(maxPixelSize: Int) -> NSImage? {
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+            return nil
+        }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+        return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+    }
+
+    private static func aspectFillSourceRect(sourceSize: NSSize, targetSize: NSSize) -> NSRect {
+        guard sourceSize.width > 0, sourceSize.height > 0, targetSize.width > 0, targetSize.height > 0 else {
+            return NSRect(origin: .zero, size: sourceSize)
+        }
+
+        let sourceAspect = sourceSize.width / sourceSize.height
+        let targetAspect = targetSize.width / targetSize.height
+
+        if sourceAspect > targetAspect {
+            let width = sourceSize.height * targetAspect
+            return NSRect(
+                x: (sourceSize.width - width) / 2,
+                y: 0,
+                width: width,
+                height: sourceSize.height
+            )
+        }
+
+        let height = sourceSize.width / targetAspect
+        return NSRect(
+            x: 0,
+            y: (sourceSize.height - height) / 2,
+            width: sourceSize.width,
+            height: height
+        )
+    }
+}
+
+@MainActor
+private final class DeviceBezelLibrary: ObservableObject {
+    static let shared = DeviceBezelLibrary()
+
+    @Published private(set) var assets: [ImportedDeviceBezel] = []
+
+    private let directoryURL: URL
+    private let metadataURL: URL
+
+    private init() {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support")
+        directoryURL = support
+            .appending(path: "Screenshot Manager", directoryHint: .isDirectory)
+            .appending(path: "Device Bezels", directoryHint: .isDirectory)
+        metadataURL = directoryURL.appending(path: "bezels.json")
+        load()
+    }
+
+    func importBezel(from sourceURL: URL) throws -> ImportedDeviceBezel {
+        let didStartAccess = sourceURL.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess {
+                sourceURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let rect = try DeviceBezelAnalyzer.detectScreenRect(in: sourceURL)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+        let id = UUID()
+        let destination = directoryURL.appending(path: "\(id.uuidString).png")
+        if FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try FileManager.default.copyItem(at: sourceURL, to: destination)
+
+        let rawName = sourceURL.deletingPathExtension().lastPathComponent
+        let displayName = rawName
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let asset = ImportedDeviceBezel(
+            id: id,
+            name: displayName.isEmpty ? "Device Bezel" : displayName,
+            fileURL: destination,
+            screenX: rect.minX,
+            screenY: rect.minY,
+            screenWidth: rect.width,
+            screenHeight: rect.height
+        )
+        assets.append(asset)
+        assets.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        try save()
+        return asset
+    }
+
+    func remove(_ bezel: ImportedDeviceBezel) {
+        assets.removeAll { $0.id == bezel.id }
+        try? FileManager.default.removeItem(at: bezel.fileURL)
+        try? save()
+    }
+
+    private func load() {
+        guard let data = try? Data(contentsOf: metadataURL),
+              let decoded = try? JSONDecoder().decode([ImportedDeviceBezel].self, from: data) else {
+            assets = []
+            return
+        }
+        assets = decoded.filter { FileManager.default.fileExists(atPath: $0.fileURL.path(percentEncoded: false)) }
+    }
+
+    private func save() throws {
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(assets)
+        try data.write(to: metadataURL, options: .atomic)
+    }
+}
+
+private enum DeviceBezelAnalyzer {
+    enum AnalyzerError: LocalizedError {
+        case unreadableImage
+        case noTransparentScreen
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadableImage:
+                return "Could not read this PNG bezel."
+            case .noTransparentScreen:
+                return "No enclosed transparent screen cutout was found. Use a transparent bezel PNG where the display area is transparent."
+            }
+        }
+    }
+
+    static func detectScreenRect(in url: URL) throws -> NSRect {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            throw AnalyzerError.unreadableImage
+        }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 720,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            throw AnalyzerError.unreadableImage
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 2, height > 2 else {
+            throw AnalyzerError.unreadableImage
+        }
+
+        let bytesPerRow = width * 4
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+
+        let didDraw = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            ) else {
+                return false
+            }
+            context.clear(CGRect(x: 0, y: 0, width: width, height: height))
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard didDraw else {
+            throw AnalyzerError.unreadableImage
+        }
+
+        let count = width * height
+        var transparent = [Bool](repeating: false, count: count)
+        for y in 0..<height {
+            for x in 0..<width {
+                let pixelIndex = y * width + x
+                let alphaIndex = y * bytesPerRow + x * 4 + 3
+                transparent[pixelIndex] = pixels[alphaIndex] <= 24
+            }
+        }
+
+        var outside = [Bool](repeating: false, count: count)
+        var queue = [Int]()
+        queue.reserveCapacity(count / 4)
+
+        func enqueue(_ x: Int, _ y: Int) {
+            guard x >= 0, x < width, y >= 0, y < height else { return }
+            let idx = y * width + x
+            guard transparent[idx], !outside[idx] else { return }
+            outside[idx] = true
+            queue.append(idx)
+        }
+
+        for x in 0..<width {
+            enqueue(x, 0)
+            enqueue(x, height - 1)
+        }
+        for y in 0..<height {
+            enqueue(0, y)
+            enqueue(width - 1, y)
+        }
+
+        var head = 0
+        while head < queue.count {
+            let idx = queue[head]
+            head += 1
+            let x = idx % width
+            let y = idx / width
+            enqueue(x - 1, y)
+            enqueue(x + 1, y)
+            enqueue(x, y - 1)
+            enqueue(x, y + 1)
+        }
+
+        var visited = outside
+        var bestArea = 0
+        var bestBounds: (minX: Int, minY: Int, maxX: Int, maxY: Int)?
+        var componentQueue = [Int]()
+        componentQueue.reserveCapacity(count / 3)
+
+        for startIndex in 0..<count {
+            guard transparent[startIndex], !visited[startIndex] else { continue }
+
+            componentQueue.removeAll(keepingCapacity: true)
+            componentQueue.append(startIndex)
+            visited[startIndex] = true
+            var componentHead = 0
+            var area = 0
+            var minX = width
+            var minY = height
+            var maxX = 0
+            var maxY = 0
+
+            while componentHead < componentQueue.count {
+                let idx = componentQueue[componentHead]
+                componentHead += 1
+                area += 1
+                let x = idx % width
+                let y = idx / width
+                minX = min(minX, x)
+                minY = min(minY, y)
+                maxX = max(maxX, x)
+                maxY = max(maxY, y)
+
+                let neighbors = [
+                    (x - 1, y),
+                    (x + 1, y),
+                    (x, y - 1),
+                    (x, y + 1)
+                ]
+                for (nx, ny) in neighbors {
+                    guard nx >= 0, nx < width, ny >= 0, ny < height else { continue }
+                    let next = ny * width + nx
+                    guard transparent[next], !visited[next] else { continue }
+                    visited[next] = true
+                    componentQueue.append(next)
+                }
+            }
+
+            if area > bestArea {
+                bestArea = area
+                bestBounds = (minX, minY, maxX, maxY)
+            }
+        }
+
+        guard let bestBounds,
+              bestArea >= Int(Double(count) * 0.025) else {
+            throw AnalyzerError.noTransparentScreen
+        }
+
+        let rectWidth = bestBounds.maxX - bestBounds.minX + 1
+        let rectHeight = bestBounds.maxY - bestBounds.minY + 1
+        guard rectWidth > width / 10, rectHeight > height / 10 else {
+            throw AnalyzerError.noTransparentScreen
+        }
+
+        return NSRect(
+            x: CGFloat(bestBounds.minX) / CGFloat(width),
+            y: CGFloat(bestBounds.minY) / CGFloat(height),
+            width: CGFloat(rectWidth) / CGFloat(width),
+            height: CGFloat(rectHeight) / CGFloat(height)
+        )
     }
 }
 
@@ -2345,6 +4032,41 @@ private enum ImageAnnotation {
             return .text(text, point.offsetBy(dx: delta.width, dy: delta.height), color, fontSize)
         case .mosaic(let rect):
             return .mosaic(rect.offsetBy(dx: delta.width, dy: delta.height))
+        }
+    }
+
+    func transformed(using transform: NSAffineTransform) -> ImageAnnotation {
+        func point(_ value: NSPoint) -> NSPoint { transform.transform(value) }
+        func rect(_ value: NSRect) -> NSRect {
+            let points = [
+                NSPoint(x: value.minX, y: value.minY),
+                NSPoint(x: value.maxX, y: value.minY),
+                NSPoint(x: value.maxX, y: value.maxY),
+                NSPoint(x: value.minX, y: value.maxY)
+            ].map(point)
+            guard let first = points.first else { return .zero }
+            let minX = points.dropFirst().reduce(first.x) { min($0, $1.x) }
+            let maxX = points.dropFirst().reduce(first.x) { max($0, $1.x) }
+            let minY = points.dropFirst().reduce(first.y) { min($0, $1.y) }
+            let maxY = points.dropFirst().reduce(first.y) { max($0, $1.y) }
+            return NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        }
+
+        switch self {
+        case .arrow(let start, let end, let color, let lineWidth):
+            return .arrow(point(start), point(end), color, lineWidth)
+        case .line(let start, let end, let color, let lineWidth):
+            return .line(point(start), point(end), color, lineWidth)
+        case .rectangle(let value, let color, let lineWidth):
+            return .rectangle(rect(value), color, lineWidth)
+        case .oval(let value, let color, let lineWidth):
+            return .oval(rect(value), color, lineWidth)
+        case .marker(let points, let color, let lineWidth):
+            return .marker(points.map(point), color, lineWidth)
+        case .text(let text, let origin, let color, let fontSize):
+            return .text(text, point(origin), color, fontSize)
+        case .mosaic(let value):
+            return .mosaic(rect(value))
         }
     }
 
