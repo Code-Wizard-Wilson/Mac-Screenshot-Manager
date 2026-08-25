@@ -25,6 +25,13 @@ enum ScreenshotCaptureService {
         return destinationURL
     }
 
+    static func savePNGData(_ data: Data, in folderURL: URL, kind: CaptureKind = .saved) throws -> URL {
+        try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+        let destinationURL = uniqueScreenshotURL(in: folderURL, kind: kind)
+        try data.write(to: destinationURL, options: .atomic)
+        return destinationURL
+    }
+
     static func save(_ image: NSImage, in folderURL: URL, kind: CaptureKind = .saved) throws -> URL {
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
 

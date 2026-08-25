@@ -56,3 +56,10 @@ enum AppPreferenceKeys {
     static let showsMenuBarItem = "ScreenshotManager.showsMenuBarItem"
     static let didCompleteOnboarding = "ScreenshotManager.didCompleteOnboarding"
 }
+
+
+extension Notification.Name {
+    static let screenshotManagerMenuBarVisibilityDidChange = Notification.Name(
+        "ScreenshotManager.MenuBarVisibilityDidChange"
+    )
+}

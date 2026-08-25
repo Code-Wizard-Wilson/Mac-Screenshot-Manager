@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var windowController: NSWindowController?
     private var settingsWindowController: NSWindowController?
+    private var statusItem: NSStatusItem?
+    private var statusPopover: NSPopover?
+    private var menuBarVisibilityObserver: NSObjectProtocol?
     private let clipboardHotkeyID: UInt32 = 1
     private let saveHotkeyID: UInt32 = 2
 
@@ -14,6 +17,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         showWindow()
         registerGlobalHotkeys()
+        configureMenuBarVisibility()
+
+        menuBarVisibilityObserver = NotificationCenter.default.addObserver(
+            forName: .screenshotManagerMenuBarVisibilityDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let visible = (notification.object as? Bool)
+                ?? UserDefaults.standard.object(forKey: AppPreferenceKeys.showsMenuBarItem) as? Bool
+                ?? true
+            Task { @MainActor [weak self] in
+                self?.setMenuBarItemVisible(visible)
+            }
+        }
 
         store.hotkeysDidChange = { [weak self] in
             self?.registerGlobalHotkeys()
@@ -27,6 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         GlobalHotkeyManager.shared.unregister()
+        if let menuBarVisibilityObserver {
+            NotificationCenter.default.removeObserver(menuBarVisibilityObserver)
+        }
+        statusPopover?.close()
+        if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+        }
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -58,6 +82,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let window = currentSettingsWindow()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func configureMenuBarVisibility() {
+        if UserDefaults.standard.object(forKey: AppPreferenceKeys.showsMenuBarItem) == nil {
+            UserDefaults.standard.set(true, forKey: AppPreferenceKeys.showsMenuBarItem)
+        }
+        let visible = UserDefaults.standard.bool(forKey: AppPreferenceKeys.showsMenuBarItem)
+        setMenuBarItemVisible(visible)
+    }
+
+    func setMenuBarItemVisible(_ visible: Bool) {
+        UserDefaults.standard.set(visible, forKey: AppPreferenceKeys.showsMenuBarItem)
+
+        if visible {
+            guard statusItem == nil else { return }
+
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            if let button = item.button {
+                let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+                button.image = NSImage(
+                    systemSymbolName: "camera.viewfinder",
+                    accessibilityDescription: "Screenshot Manager"
+                )?.withSymbolConfiguration(config)
+                button.imagePosition = .imageOnly
+                button.toolTip = "Screenshot Manager"
+                button.target = self
+                button.action = #selector(toggleStatusPopover(_:))
+                button.sendAction(on: [.leftMouseUp])
+            }
+            statusItem = item
+            return
+        }
+
+        statusPopover?.performClose(nil)
+        statusPopover = nil
+        if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
+        }
+    }
+
+    @objc private func toggleStatusPopover(_ sender: Any?) {
+        guard let button = statusItem?.button else { return }
+
+        if let popover = statusPopover, popover.isShown {
+            popover.performClose(sender)
+            return
+        }
+
+        let popover = statusPopover ?? makeStatusPopover()
+        statusPopover = popover
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func makeStatusPopover() -> NSPopover {
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentSize = NSSize(width: 292, height: 322)
+        popover.contentViewController = NSHostingController(
+            rootView: MenuBarPanelView(
+                store: store,
+                openManager: { [weak self] in
+                    self?.statusPopover?.performClose(nil)
+                    self?.openManagerWindow()
+                },
+                openSettings: { [weak self] in
+                    self?.statusPopover?.performClose(nil)
+                    self?.openSettingsWindow()
+                },
+                quit: {
+                    NSApp.terminate(nil)
+                }
+            )
+        )
+        return popover
     }
 
     private func registerGlobalHotkeys() {
@@ -115,7 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(rootView: contentView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 540),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -130,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.toolbarStyle = .unifiedCompact
         window.isReleasedWhenClosed = false
         window.isRestorable = false
-        window.minSize = NSSize(width: 760, height: 480)
+        window.minSize = NSSize(width: 700, height: 440)
         window.contentViewController = hostingController
         window.center()
 

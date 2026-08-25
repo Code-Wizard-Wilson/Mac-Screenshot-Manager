@@ -6,6 +6,27 @@ import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
+final class PreparedCaptureOutput: @unchecked Sendable {
+    let image: NSImage
+    let pngData: Data
+
+    init(image: NSImage, pngData: Data) {
+        self.image = image
+        self.pngData = pngData
+    }
+
+    static func make(from image: NSImage) throws -> PreparedCaptureOutput {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw ImageEditingError.renderFailed
+        }
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            throw ImageEditingError.renderFailed
+        }
+        return PreparedCaptureOutput(image: image, pngData: pngData)
+    }
+}
+
 @MainActor
 final class ScreenshotStore: ObservableObject {
     static let imageDropTypeIdentifiers: [String] = [
@@ -571,27 +592,17 @@ final class ScreenshotStore: ObservableObject {
     }
 
     private static func writeImageToPasteboard(_ image: NSImage) throws {
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            throw ClipboardImageError.encodeFailed
-        }
-        let bitmap = NSBitmapImageRep(cgImage: cgImage)
-        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
-            throw ClipboardImageError.encodeFailed
-        }
+        let prepared = try PreparedCaptureOutput.make(from: image)
+        try writePNGDataToPasteboard(prepared.pngData)
+    }
 
+    private static func writePNGDataToPasteboard(_ pngData: Data) throws {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.declareTypes([.png, .tiff], owner: nil)
-        let pngWritten = pasteboard.setData(pngData, forType: .png)
-        let tiffWritten: Bool
-        if let tiffData = image.tiffRepresentation {
-            tiffWritten = pasteboard.setData(tiffData, forType: .tiff)
-        } else {
-            tiffWritten = false
-        }
+        pasteboard.declareTypes([.png], owner: nil)
+        let written = pasteboard.setData(pngData, forType: .png)
 
-        guard (pngWritten || tiffWritten),
-              pasteboard.availableType(from: [.png, .tiff]) != nil else {
+        guard written, pasteboard.availableType(from: [.png]) != nil else {
             throw ClipboardImageError.writeFailed
         }
     }
@@ -807,6 +818,113 @@ final class ScreenshotStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    func finishPreparedAnnotatedCapture(
+        _ output: PreparedCaptureOutput,
+        destination: CaptureAnnotationDestination
+    ) -> Bool {
+        guard !captureEditorActionInProgress else { return false }
+        captureEditorActionInProgress = true
+
+        switch destination {
+        case .capture(.clipboard):
+            do {
+                try Self.writePNGDataToPasteboard(output.pngData)
+                let item = try? addTemporaryClipboardImage(output.image, pngData: output.pngData)
+                closeCaptureEditor(animated: true)
+                showNotice(
+                    title: "Copied to Clipboard",
+                    detail: "PNG is ready in the system clipboard.",
+                    systemImage: "checkmark.circle.fill",
+                    tone: .success
+                )
+                if let item { selectedItem = item }
+                return true
+            } catch {
+                captureEditorActionInProgress = false
+                errorMessage = error.localizedDescription
+                showNotice(
+                    title: "Copy Failed",
+                    detail: error.localizedDescription,
+                    systemImage: "exclamationmark.triangle",
+                    tone: .failure
+                )
+                return false
+            }
+
+        case .capture(.save):
+            do {
+                let url = try ScreenshotCaptureService.savePNGData(output.pngData, in: folderURL, kind: .saved)
+                let copiedToClipboard = (try? Self.writePNGDataToPasteboard(output.pngData)) != nil
+                refresh(selecting: url)
+                closeCaptureEditor(animated: true)
+                showNotice(
+                    title: "Saved to Library",
+                    detail: copiedToClipboard
+                        ? "\(url.lastPathComponent) · also copied to Clipboard."
+                        : "\(url.lastPathComponent)",
+                    systemImage: "checkmark.circle.fill",
+                    tone: .success
+                )
+                return true
+            } catch {
+                captureEditorActionInProgress = false
+                errorMessage = error.localizedDescription
+                showNotice(
+                    title: "Save Failed",
+                    detail: error.localizedDescription,
+                    systemImage: "exclamationmark.triangle",
+                    tone: .failure
+                )
+                return false
+            }
+
+        case .edit(let item):
+            do {
+                if item.isTemporary {
+                    try replaceTemporaryImage(item: item, image: output.image, pngData: output.pngData)
+                } else if item.url.pathExtension.lowercased() == "png" {
+                    try output.pngData.write(to: item.url, options: .atomic)
+                    refresh(selecting: item.url)
+                } else {
+                    try ImageEditingService.write(output.image, to: item.url)
+                    refresh(selecting: item.url)
+                }
+
+                let copiedToClipboard = (try? Self.writePNGDataToPasteboard(output.pngData)) != nil
+                closeCaptureEditor(animated: true)
+                showNotice(
+                    title: "Screenshot Updated",
+                    detail: copiedToClipboard ? "Saved and copied to Clipboard." : "Saved.",
+                    systemImage: "checkmark.circle.fill",
+                    tone: .success
+                )
+                return true
+            } catch {
+                captureEditorActionInProgress = false
+                errorMessage = error.localizedDescription
+                showNotice(
+                    title: "Update Failed",
+                    detail: error.localizedDescription,
+                    systemImage: "exclamationmark.triangle",
+                    tone: .failure
+                )
+                return false
+            }
+        }
+    }
+
+    func reportCaptureRenderFailure(_ error: Error) {
+        captureEditorActionInProgress = false
+        errorMessage = error.localizedDescription
+        showNotice(
+            title: "Render Failed",
+            detail: error.localizedDescription,
+            systemImage: "exclamationmark.triangle",
+            tone: .failure
+        )
+    }
+
     func image(for item: ScreenshotItem) -> NSImage? {
         if let url = temporaryImageURLs[item.id] {
             return NSImage(contentsOf: url)
@@ -855,13 +973,10 @@ final class ScreenshotStore: ObservableObject {
             return
         }
 
-        let targetFrame = Self.scaledWindowFrame(from: window.frame, scale: 0.982, yOffset: 18)
-
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.17
+            context.duration = 0.14
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 0
-            window.animator().setFrame(targetFrame, display: true)
         } completionHandler: {
             Task { @MainActor in
                 window.close()
@@ -965,14 +1080,18 @@ final class ScreenshotStore: ObservableObject {
         showCaptureEditor(image: image, mode: mode)
     }
 
-    private func addTemporaryClipboardImage(_ image: NSImage) throws -> ScreenshotItem {
+    private func addTemporaryClipboardImage(_ image: NSImage, pngData: Data? = nil) throws -> ScreenshotItem {
         let id = "temporary-\(UUID().uuidString)"
         let now = Date()
         let dimensions = Self.imageDimensions(image: image)
         let fileName = "\(CaptureKind.clipboard.filePrefix) Screenshot \(Self.fileTimestamp()).png"
         try FileManager.default.createDirectory(at: temporaryImageDirectoryURL, withIntermediateDirectories: true)
         let temporaryURL = temporaryImageDirectoryURL.appending(path: "\(id).png")
-        try ImageEditingService.write(image, to: temporaryURL)
+        if let pngData {
+            try pngData.write(to: temporaryURL, options: .atomic)
+        } else {
+            try ImageEditingService.write(image, to: temporaryURL)
+        }
         let byteSize = (try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         let item = ScreenshotItem(
             id: id,
@@ -990,6 +1109,31 @@ final class ScreenshotStore: ObservableObject {
         temporaryItems.insert(item, at: 0)
         items = temporaryItems + items.filter { !$0.isTemporary }
         return item
+    }
+
+    private func replaceTemporaryImage(item: ScreenshotItem, image: NSImage, pngData: Data) throws {
+        guard let index = temporaryItems.firstIndex(where: { $0.id == item.id }),
+              let temporaryURL = temporaryImageURLs[item.id] else {
+            throw ImageEditingError.renderFailed
+        }
+
+        try pngData.write(to: temporaryURL, options: .atomic)
+        let dimensions = Self.imageDimensions(image: image)
+        let byteSize = (try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+        let updatedItem = ScreenshotItem(
+            id: item.id,
+            url: item.url,
+            fileName: item.fileName,
+            captureKind: item.captureKind,
+            createdAt: item.createdAt,
+            modifiedAt: Date(),
+            byteSize: byteSize,
+            pixelWidth: dimensions.width,
+            pixelHeight: dimensions.height
+        )
+        temporaryItems[index] = updatedItem
+        items = temporaryItems + items.filter { !$0.isTemporary }
+        selectedItem = updatedItem
     }
 
     private func replaceTemporaryImage(_ image: NSImage, item: ScreenshotItem, showsNotice: Bool = true) {
@@ -1082,19 +1226,15 @@ final class ScreenshotStore: ObservableObject {
             return
         }
 
-        let targetFrame = window.frame
-        let startFrame = Self.scaledWindowFrame(from: targetFrame, scale: 0.982, yOffset: -14)
         window.alphaValue = 0
-        window.setFrame(startFrame, display: false)
 
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.19
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 1
-            window.animator().setFrame(targetFrame, display: true)
         }
     }
 

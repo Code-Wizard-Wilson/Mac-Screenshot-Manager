@@ -164,6 +164,7 @@ struct CaptureAnnotationView: View {
     }
     @State private var textValue = "Text"
     @StateObject private var keyboardMonitor = AnnotationKeyboardMonitor()
+    @StateObject private var exportController = CaptureExportController()
     @State private var showsBackgroundPanel = false
     init(store: ScreenshotStore, session: CaptureAnnotationSession) {
         self.store = store
@@ -199,18 +200,26 @@ struct CaptureAnnotationView: View {
                 Divider()
 
                 annotationToolbar
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 74, alignment: .top)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .frame(minHeight: showsBackgroundPanel ? 54 : 86, alignment: .top)
                     .background(.ultraThinMaterial)
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(AppTheme.softBorder.opacity(0.7))
+                            .frame(height: 0.6)
+                    }
                     .layoutPriority(1)
             }
 
             if showsBackgroundPanel {
                 Divider()
-                BackgroundInspectorView(document: document)
-                    .frame(width: 292)
-                    .layoutPriority(2)
+                BackgroundInspectorView(
+                    document: document,
+                    onBack: { showsBackgroundPanel = false }
+                )
+                .frame(width: 280)
+                .layoutPriority(2)
             }
         }
         .frame(minWidth: 980, minHeight: 680)
@@ -226,175 +235,161 @@ struct CaptureAnnotationView: View {
     }
 
     private var annotationToolbar: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                if !showsBackgroundPanel {
-                    toolButton(.arrow, icon: "arrow.up.right", title: "Arrow")
-                    toolButton(.line, icon: "line.diagonal", title: "Line")
-                    toolButton(.rectangle, icon: "square", title: "Rectangle")
-                    toolButton(.oval, icon: "oval", title: "Oval")
-                    toolButton(.marker, icon: "highlighter", title: "Marker")
-                    toolButton(.text, icon: "textformat", title: "Text")
-                    toolButton(.mosaic, icon: "square.grid.3x3.fill", title: "Mosaic")
-
-                    Divider().frame(height: 20)
-
-                    Button {
-                        document.resetCrop()
-                    } label: {
-                        toolbarIcon("crop")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!document.isCropAdjusted)
-                    .help("Reset Crop")
-
-                    Divider().frame(height: 20)
-
-                    Button {
-                        document.rotate(clockwise: false)
-                    } label: {
-                        toolbarIcon("rotate.left")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Rotate Left")
-
-                    Button {
-                        document.rotate(clockwise: true)
-                    } label: {
-                        toolbarIcon("rotate.right")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Rotate Right")
-
-                    Button {
-                        document.flipHorizontal()
-                    } label: {
-                        toolbarIcon("arrow.left.and.right.righttriangle.left.righttriangle.right")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Flip Horizontal")
-
-                    Spacer(minLength: 8)
-
-                    Button {
-                        document.undo()
-                    } label: {
-                        toolbarIcon("arrow.uturn.backward")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(document.annotations.isEmpty)
-                    .keyboardShortcut("z", modifiers: .command)
-                    .help("Undo")
-
-                    Divider().frame(height: 20)
-                } else {
-                    Text("Mockup Preview")
-                        .font(AppTypography.helper.weight(.medium))
+        Group {
+            if showsBackgroundPanel {
+                HStack(spacing: 10) {
+                    Text(captureHint)
+                        .font(AppTypography.metadata)
                         .foregroundStyle(.secondary)
-                    Spacer(minLength: 8)
-                }
 
-                Button {
-                    pinCurrentImage()
-                } label: {
-                    toolbarIcon("pin")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Pin as floating reference window")
+                    Spacer(minLength: 10)
 
-                Button {
-                    store.closeCaptureEditor()
-                } label: {
-                    toolbarIcon("xmark")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .keyboardShortcut(.cancelAction)
-                .help("Close")
+                    toolbarUtilityButton("pin", title: "Pin as floating reference window") {
+                        pinCurrentImage()
+                    }
 
-                if showsSecondarySaveAction {
-                    Button {
-                        saveToLibrary()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "tray.and.arrow.down")
-                            Text(secondarySaveTitle)
-                                .font(AppTypography.helper.weight(.semibold))
+                    toolbarUtilityButton("xmark", title: "Close") {
+                        store.closeCaptureEditor()
+                    }
+                    .keyboardShortcut(.cancelAction)
+
+                    outputActions
+                }
+                .frame(height: 34)
+            } else {
+                VStack(spacing: 7) {
+                    HStack(spacing: 10) {
+                        toolbarCluster(title: "TOOLS") {
+                            toolButton(.arrow)
+                            toolButton(.line)
+                            toolButton(.rectangle)
+                            toolButton(.oval)
+                            toolButton(.marker)
+                            toolButton(.text)
+                            toolButton(.mosaic)
                         }
-                        .frame(width: actionButtonWidth)
-                        .frame(minHeight: toolbarButtonContentSize.height)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Save the current result as a file in the Screenshot Manager library")
-                }
 
-                Button {
-                    finishCapture()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: finishActionIcon)
-                        Text("\(finishActionTitle)  ↩")
-                            .font(AppTypography.helper.weight(.semibold))
-                    }
-                    .frame(width: actionButtonWidth)
-                    .frame(minHeight: toolbarButtonContentSize.height)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .keyboardShortcut(.defaultAction)
-                .help("\(finishActionHelp) — Return")
-            }
+                        toolbarCluster(title: "ADJUST") {
+                            toolbarActionButton(
+                                "crop",
+                                title: "Reset Crop",
+                                isEnabled: document.isCropAdjusted
+                            ) {
+                                document.resetCrop()
+                            }
 
-            HStack(spacing: 10) {
-                if showsBackgroundPanel {
-                    backgroundButton
+                            toolbarActionButton("rotate.left", title: "Rotate Left") {
+                                document.rotate(clockwise: false)
+                            }
 
-                    Text("Back to Annotate")
-                        .font(AppTypography.helper)
-                        .foregroundStyle(.secondary)
+                            toolbarActionButton("rotate.right", title: "Rotate Right") {
+                                document.rotate(clockwise: true)
+                            }
 
-                    Spacer()
+                            toolbarActionButton(
+                                "arrow.left.and.right.righttriangle.left.righttriangle.right",
+                                title: "Flip Horizontal"
+                            ) {
+                                document.flipHorizontal()
+                            }
 
-                    Text(captureHint)
-                        .font(AppTypography.helper)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                } else {
-                    colorPicker
+                            toolbarActionButton(
+                                "arrow.uturn.backward",
+                                title: "Undo",
+                                isEnabled: !document.annotations.isEmpty
+                            ) {
+                                document.undo()
+                            }
+                            .keyboardShortcut("z", modifiers: .command)
+                        }
 
-                    Divider().frame(height: 20)
+                        Spacer(minLength: 10)
 
-                    strokeWidthControl
+                        toolbarUtilityButton("pin", title: "Pin as floating reference window") {
+                            pinCurrentImage()
+                        }
 
-                    Divider().frame(height: 20)
+                        toolbarUtilityButton("xmark", title: "Close") {
+                            store.closeCaptureEditor()
+                        }
+                        .keyboardShortcut(.cancelAction)
 
-                    backgroundButton
-
-                    if tool == .text {
-                        TextField("Text", text: $textValue)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220)
+                        outputActions
                     }
 
-                    Text(captureHint)
-                        .font(AppTypography.helper)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 10) {
+                        HStack(spacing: 10) {
+                            HStack(spacing: 7) {
+                                Image(systemName: tool.systemImage)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                                Text(tool.title)
+                                    .font(AppTypography.helper.weight(.semibold))
+                            }
+                            .frame(minWidth: 72, alignment: .leading)
 
-                    Spacer()
+                            if tool.usesColor {
+                                Divider().frame(height: 18)
+                                colorPicker
+                            }
+
+                            if tool.usesStrokeWidth {
+                                Divider().frame(height: 18)
+                                strokeWidthControl
+                            }
+
+                            if tool == .text {
+                                Divider().frame(height: 18)
+                                TextField("Text", text: $textValue)
+                                    .textFieldStyle(.plain)
+                                    .font(AppTypography.helper)
+                                    .padding(.horizontal, 9)
+                                    .frame(width: 190, height: 28)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                            .fill(Color.primary.opacity(0.065))
+                                    )
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                            .stroke(AppTheme.softBorder, lineWidth: 0.7)
+                                    }
+                            } else if tool == .mosaic {
+                                Divider().frame(height: 18)
+                                Text("Drag over an area to pixelate")
+                                    .font(AppTypography.metadata)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(AppTheme.softBorder.opacity(0.65), lineWidth: 0.7)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        mockupButton
+
+                        Text(captureHint)
+                            .font(AppTypography.metadata)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(height: 34)
                 }
             }
         }
     }
 
     private var captureHint: String {
+        if exportController.isWorking {
+            return exportController.statusText
+        }
         switch session.destination {
         case .capture(.clipboard):
             return "Enter to copy"
@@ -454,32 +449,160 @@ struct CaptureAnnotationView: View {
     }
 
     private func saveToLibrary() {
-        store.finishAnnotatedCapture(document.renderedImage(), destination: .capture(.save))
+        exportController.run(
+            document: document,
+            store: store,
+            destination: .capture(.save)
+        )
     }
 
-    private func toolButton(_ value: AnnotationTool, icon: String, title: String) -> some View {
-        Button {
+    private func toolButton(_ value: AnnotationTool) -> some View {
+        let isSelected = tool == value
+
+        return Button {
             tool = value
         } label: {
-            Label(title, systemImage: icon)
-                .labelStyle(.iconOnly)
-                .frame(width: toolbarButtonContentSize.width, height: toolbarButtonContentSize.height)
+            Image(systemName: value.systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.white : Color.primary.opacity(0.72))
+                .frame(width: 30, height: 28)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(isSelected ? Color.accentColor : Color.clear)
+        )
+        .help(value.title)
+    }
+
+    @ViewBuilder
+    private func toolbarCluster<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .font(.system(size: 9, weight: .bold))
+                .tracking(0.55)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 5)
+                .padding(.trailing, 3)
+
+            Divider()
+                .frame(height: 17)
+                .opacity(0.65)
+
+            content()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(AppTheme.softBorder.opacity(0.7), lineWidth: 0.7)
+        }
+    }
+
+    private func toolbarActionButton(
+        _ systemName: String,
+        title: String,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(Color.primary.opacity(isEnabled ? 0.72 : 0.28))
+                .frame(width: 29, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .help(title)
-        .background(tool == value ? Color.accentColor.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
     }
 
-    private var actionButtonWidth: CGFloat { 108 }
-
-    private var toolbarButtonContentSize: CGSize {
-        CGSize(width: 28, height: 26)
+    private func toolbarUtilityButton(
+        _ systemName: String,
+        title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.primary.opacity(0.68))
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(AppTheme.softBorder.opacity(0.65), lineWidth: 0.7)
+        }
+        .help(title)
     }
 
-    private func toolbarIcon(_ systemName: String) -> some View {
-        Image(systemName: systemName)
-            .frame(width: toolbarButtonContentSize.width, height: toolbarButtonContentSize.height)
+    private var actionButtonWidth: CGFloat { 96 }
+
+    private var outputActions: some View {
+        HStack(spacing: 6) {
+            if showsSecondarySaveAction {
+                Button {
+                    saveToLibrary()
+                } label: {
+                    Label(secondarySaveTitle, systemImage: "tray.and.arrow.down")
+                        .font(AppTypography.helper.weight(.semibold))
+                        .frame(width: actionButtonWidth, height: 30)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.primary.opacity(exportController.isWorking ? 0.38 : 0.78))
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.primary.opacity(0.065))
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(AppTheme.softBorder.opacity(0.8), lineWidth: 0.8)
+                }
+                .disabled(exportController.isWorking)
+                .help("Save the current result as a file in the Screenshot Manager library")
+            }
+
+            Button {
+                finishCapture()
+            } label: {
+                HStack(spacing: 6) {
+                    if exportController.isWorking {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                        Text(exportController.buttonTitle)
+                    } else {
+                        Image(systemName: finishActionIcon)
+                        Text(finishActionTitle)
+                        Text("↩")
+                            .foregroundStyle(Color.white.opacity(0.68))
+                    }
+                }
+                .font(AppTypography.helper.weight(.semibold))
+                .frame(width: exportController.isWorking ? actionButtonWidth + 34 : actionButtonWidth + 8, height: 30)
+                .animation(.easeOut(duration: 0.12), value: exportController.isWorking)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.accentColor.opacity(exportController.isWorking ? 0.78 : 1))
+            )
+            .disabled(exportController.isWorking)
+            .keyboardShortcut(.defaultAction)
+            .help("\(finishActionHelp) — Return")
+        }
+        .padding(.leading, 2)
     }
 
     private var colorPicker: some View {
@@ -546,29 +669,52 @@ struct CaptureAnnotationView: View {
         .help("Stroke Width")
     }
 
-    private var backgroundButton: some View {
+    private var mockupButton: some View {
         Button {
             showsBackgroundPanel.toggle()
         } label: {
-            toolbarIcon("photo.on.rectangle")
+            HStack(spacing: 7) {
+                Image(systemName: showsBackgroundPanel ? "arrow.left" : "photo.on.rectangle.angled")
+                    .font(.system(size: 11.5, weight: .semibold))
+                Text(showsBackgroundPanel ? "Back to Annotate" : "Mockup")
+                    .font(AppTypography.helper.weight(.semibold))
+            }
+            .foregroundStyle(
+                showsBackgroundPanel
+                    || document.backgroundSettings.style != .none
+                    || document.selectedPhotoMockup != nil
+                    || document.selectedDeviceBezel != nil
+                    ? Color.accentColor
+                    : Color.primary.opacity(0.72)
+            )
+            .padding(.horizontal, 10)
+            .frame(height: 30)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .buttonStyle(.plain)
         .background(
-            showsBackgroundPanel
-                || document.backgroundSettings.style != .none
-                || document.selectedPhotoMockup != nil
-                || document.selectedDeviceBezel != nil
-                ? Color.accentColor.opacity(0.14)
-                : Color.clear,
-            in: RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(
+                    showsBackgroundPanel
+                        || document.backgroundSettings.style != .none
+                        || document.selectedPhotoMockup != nil
+                        || document.selectedDeviceBezel != nil
+                        ? Color.accentColor.opacity(0.11)
+                        : Color.primary.opacity(0.045)
+                )
         )
-        .help(showsBackgroundPanel ? "Back to Annotate" : "Mockup & Background")
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(
+                    showsBackgroundPanel ? Color.accentColor.opacity(0.42) : AppTheme.softBorder.opacity(0.7),
+                    lineWidth: 0.8
+                )
+        }
+        .help(showsBackgroundPanel ? "Back to Annotate" : "Open Mockup & Background")
     }
 
     private var liveTextButton: some View {
         Button {
-            withAnimation(.spring(response: 0.24, dampingFraction: 0.78)) {
+            withAnimation(.easeInOut(duration: 0.18)) {
                 document.toggleTextRecognition()
             }
         } label: {
@@ -607,7 +753,11 @@ struct CaptureAnnotationView: View {
     }
 
     private func finishCapture() {
-        store.finishAnnotatedCapture(document.renderedImage(), destination: session.destination)
+        exportController.run(
+            document: document,
+            store: store,
+            destination: session.destination
+        )
     }
 
     private func pinCurrentImage() {
@@ -627,7 +777,7 @@ struct CaptureAnnotationView: View {
     private func installKeyboardMonitor() {
         let destination = session.destination
 
-        keyboardMonitor.install { [weak store, weak document] event in
+        keyboardMonitor.install { [weak store, weak document, weak exportController] event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let isReturn = event.keyCode == 36 || event.keyCode == 76
 
@@ -641,11 +791,12 @@ struct CaptureAnnotationView: View {
 
             guard returnShouldFinish,
                   let store,
-                  let document else {
+                  let document,
+                  let exportController else {
                 return event
             }
 
-            store.finishAnnotatedCapture(document.renderedImage(), destination: destination)
+            exportController.run(document: document, store: store, destination: destination)
             return nil
         }
     }
@@ -682,6 +833,7 @@ private final class AnnotationKeyboardMonitor: ObservableObject {
 
 private struct BackgroundInspectorView: View {
     @ObservedObject var document: AnnotationDocument
+    let onBack: () -> Void
     @StateObject private var photoLibrary = PhotoMockupLibrary.shared
     @State private var mockupError: String?
     @State private var expandedFamily: PhotoMockupFamily?
@@ -690,137 +842,192 @@ private struct BackgroundInspectorView: View {
     private let swatchColumns = [GridItem(.adaptive(minimum: 38), spacing: 7)]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.055))
+                )
+                .help("Back to Annotate")
+
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Mockup")
                         .font(AppTypography.sectionTitle)
-                    Spacer()
-                    Button {
-                        document.selectedPhotoMockup = nil
-                        document.selectedDeviceBezel = nil
-                        document.resetMockupTransform()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .frame(width: 22, height: 22)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Remove device")
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Device")
-                        .font(AppTypography.helper)
+                    Text("Device & background")
+                        .font(AppTypography.metadata)
                         .foregroundStyle(.secondary)
-
-                    ForEach(PhotoMockupFamily.allCases) { family in
-                        familySection(family)
-                    }
-
-                    if let mockupError {
-                        Text(mockupError)
-                            .font(AppTypography.helper)
-                            .foregroundStyle(.red)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
 
-                if document.hasSelectedMockup {
-                    Divider()
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 50)
+            .background(.ultraThinMaterial)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("Transform")
-                                .font(AppTypography.helper)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Reset") {
-                                withAnimation(.easeOut(duration: 0.18)) {
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    inspectorCard(title: "Device", systemImage: "laptopcomputer.and.iphone") {
+                        VStack(alignment: .leading, spacing: 5) {
+                            ForEach(PhotoMockupFamily.allCases) { family in
+                                familySection(family)
+                            }
+
+                            if let mockupError {
+                                Text(mockupError)
+                                    .font(AppTypography.helper)
+                                    .foregroundStyle(.red)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.top, 3)
+                            }
+
+                            if document.hasSelectedMockup {
+                                Button {
+                                    document.selectedPhotoMockup = nil
+                                    document.selectedDeviceBezel = nil
                                     document.resetMockupTransform()
+                                } label: {
+                                    Label("Remove device", systemImage: "xmark.circle")
+                                        .font(AppTypography.metadata.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 4)
+                            }
+                        }
+                    }
+
+                    if document.hasSelectedMockup {
+                        inspectorCard(title: "Transform", systemImage: "move.3d") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Position & angle")
+                                        .font(AppTypography.metadata)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Button("Reset") {
+                                        withAnimation(.easeOut(duration: 0.18)) {
+                                            document.resetMockupTransform()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .font(AppTypography.metadata.weight(.medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .disabled(document.mockupTransform.isIdentity)
+                                }
+
+                                mockupTransformSlider(
+                                    title: "Zoom",
+                                    value: Binding(
+                                        get: { document.mockupTransform.zoom },
+                                        set: { newValue in updateMockupTransform { $0.zoom = newValue } }
+                                    ),
+                                    range: 0.5...1.8,
+                                    step: 0.01,
+                                    display: { "\(Int(round($0 * 100)))%" }
+                                )
+
+                                mockupTransformSlider(
+                                    title: "Tilt",
+                                    value: Binding(
+                                        get: { document.mockupTransform.tiltDegrees },
+                                        set: { newValue in updateMockupTransform { $0.tiltDegrees = newValue } }
+                                    ),
+                                    range: -25...25,
+                                    step: 1,
+                                    display: { "\(Int(round($0)))°" }
+                                )
+
+                                mockupTransformSlider(
+                                    title: "X",
+                                    value: Binding(
+                                        get: { document.mockupTransform.offsetX },
+                                        set: { newValue in updateMockupTransform { $0.offsetX = newValue } }
+                                    ),
+                                    range: -0.35...0.35,
+                                    step: 0.01,
+                                    display: { "\(Int(round($0 * 100)))%" }
+                                )
+
+                                mockupTransformSlider(
+                                    title: "Y",
+                                    value: Binding(
+                                        get: { document.mockupTransform.offsetY },
+                                        set: { newValue in updateMockupTransform { $0.offsetY = newValue } }
+                                    ),
+                                    range: -0.35...0.35,
+                                    step: 0.01,
+                                    display: { "\(Int(round($0 * 100)))%" }
+                                )
+                            }
+                        }
+                    }
+
+
+                    inspectorCard(title: "Background", systemImage: "square.on.square") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            LazyVGrid(columns: swatchColumns, alignment: .leading, spacing: 7) {
+                                backgroundSwatch(.none)
+                                ForEach(AnnotationBackgroundStyle.backgroundCases) { style in
+                                    backgroundSwatch(style)
                                 }
                             }
-                            .buttonStyle(.borderless)
-                            .font(AppTypography.metadata)
-                            .disabled(document.mockupTransform.isIdentity)
-                        }
 
-                        mockupTransformSlider(
-                            title: "Zoom",
-                            value: Binding(
-                                get: { document.mockupTransform.zoom },
-                                set: { newValue in updateMockupTransform { $0.zoom = newValue } }
-                            ),
-                            range: 0.5...1.8,
-                            step: 0.01,
-                            display: { "\(Int(round($0 * 100)))%" }
-                        )
+                            if document.backgroundSettings.style != .none {
+                                inspectorSlider(title: "Spacing", value: Binding(
+                                    get: { document.backgroundSettings.padding },
+                                    set: { newValue in updateSettings { $0.padding = newValue } }
+                                ), range: 0...180, step: 4)
 
-                        mockupTransformSlider(
-                            title: "Tilt",
-                            value: Binding(
-                                get: { document.mockupTransform.tiltDegrees },
-                                set: { newValue in updateMockupTransform { $0.tiltDegrees = newValue } }
-                            ),
-                            range: -25...25,
-                            step: 1,
-                            display: { "\(Int(round($0)))°" }
-                        )
-
-                        mockupTransformSlider(
-                            title: "X",
-                            value: Binding(
-                                get: { document.mockupTransform.offsetX },
-                                set: { newValue in updateMockupTransform { $0.offsetX = newValue } }
-                            ),
-                            range: -0.35...0.35,
-                            step: 0.01,
-                            display: { "\(Int(round($0 * 100)))%" }
-                        )
-
-                        mockupTransformSlider(
-                            title: "Y",
-                            value: Binding(
-                                get: { document.mockupTransform.offsetY },
-                                set: { newValue in updateMockupTransform { $0.offsetY = newValue } }
-                            ),
-                            range: -0.35...0.35,
-                            step: 0.01,
-                            display: { "\(Int(round($0 * 100)))%" }
-                        )
-                    }
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Background")
-                        .font(AppTypography.helper)
-                        .foregroundStyle(.secondary)
-
-                    LazyVGrid(columns: swatchColumns, alignment: .leading, spacing: 7) {
-                        backgroundSwatch(.none)
-                        ForEach(AnnotationBackgroundStyle.backgroundCases) { style in
-                            backgroundSwatch(style)
+                                inspectorSlider(title: "Corners", value: Binding(
+                                    get: { document.backgroundSettings.cornerRadius },
+                                    set: { newValue in updateSettings { $0.cornerRadius = newValue } }
+                                ), range: 0...64, step: 2)
+                            }
                         }
                     }
                 }
-
-                if document.backgroundSettings.style != .none {
-                    inspectorSlider(title: "Spacing", value: Binding(
-                        get: { document.backgroundSettings.padding },
-                        set: { newValue in updateSettings { $0.padding = newValue } }
-                    ), range: 0...180, step: 4)
-
-                    inspectorSlider(title: "Corners", value: Binding(
-                        get: { document.backgroundSettings.cornerRadius },
-                        set: { newValue in updateSettings { $0.cornerRadius = newValue } }
-                    ), range: 0...64, step: 2)
-                }
+                .padding(10)
             }
-            .padding(14)
         }
         .background {
             VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
+        }
+    }
+
+    private func inspectorCard<Content: View>(
+        title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+                Text(title)
+                    .font(AppTypography.helper.weight(.semibold))
+                Spacer()
+            }
+
+            content()
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.softBorder.opacity(0.65), lineWidth: 0.7)
         }
     }
 
@@ -859,7 +1066,10 @@ private struct BackgroundInspectorView: View {
                 .padding(.horizontal, 8)
                 .frame(height: 36)
                 .contentShape(Rectangle())
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.045)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isExpanded ? Color.accentColor.opacity(0.08) : Color.clear)
+                )
             }
             .buttonStyle(.plain)
             .disabled(models.isEmpty)
@@ -984,8 +1194,15 @@ private struct BackgroundInspectorView: View {
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 42, alignment: .trailing)
             }
-            SmoothValueSlider(value: value, range: range, step: step)
-                .frame(height: 18)
+            SmoothValueSlider(
+                value: value,
+                range: range,
+                step: step,
+                onEditingChanged: { isEditing in
+                    document.setMockupInteraction(isEditing)
+                }
+            )
+            .frame(height: 18)
         }
     }
 
@@ -1042,9 +1259,21 @@ private struct BackgroundInspectorView: View {
     }
 }
 
+private enum MockupMoveTarget: String, CaseIterable, Identifiable {
+    case device
+    case screen
+
+    var id: String { rawValue }
+    var title: String { self == .device ? "Device" : "Screen" }
+    var systemImage: String { self == .device ? "move.3d" : "rectangle.and.hand.point.up.left" }
+}
+
 private struct MockupWorkspaceView: View {
     @ObservedObject var document: AnnotationDocument
     @StateObject private var renderer = MockupPreviewRenderer()
+    @State private var dragStartOffset: CGPoint?
+    @State private var dragStartScreenOffset: CGPoint?
+    @State private var moveTarget: MockupMoveTarget = .device
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1065,6 +1294,44 @@ private struct MockupWorkspaceView: View {
                 }
 
                 Spacer()
+
+                if document.hasSelectedMockup {
+                    HStack(spacing: 2) {
+                        ForEach(MockupMoveTarget.allCases) { target in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.18)) {
+                                    moveTarget = target
+                                }
+                                document.flashMockupGrid()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: target.systemImage)
+                                        .font(.system(size: 9.5, weight: .semibold))
+                                    Text(target.title)
+                                        .font(AppTypography.metadata.weight(.semibold))
+                                }
+                                .foregroundStyle(moveTarget == target ? Color.white : Color.secondary)
+                                .padding(.horizontal, 7)
+                                .frame(height: 24)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(moveTarget == target ? Color.accentColor : Color.clear)
+                                )
+                                .scaleEffect(moveTarget == target ? 1 : 0.985)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(0.06))
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(AppTheme.softBorder.opacity(0.7), lineWidth: 0.7)
+                    }
+                }
             }
             .padding(.horizontal, 14)
             .frame(height: 38)
@@ -1087,16 +1354,14 @@ private struct MockupWorkspaceView: View {
                         .padding(22)
                     }
 
-                    if let previewImage = renderer.image {
-                        Image(nsImage: previewImage)
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFit()
-                            .padding(30)
-                            .scaleEffect(transform.zoom)
-                            .rotationEffect(.degrees(transform.tiltDegrees))
-                            .offset(x: horizontalOffset, y: verticalOffset)
-                            .compositingGroup()
+                    if let previewFrame = renderer.frame {
+                        mockupPreviewContent(
+                            frame: previewFrame,
+                            in: proxy.size,
+                            transform: transform,
+                            horizontalOffset: horizontalOffset,
+                            verticalOffset: verticalOffset
+                        )
                     } else {
                         Image(nsImage: document.image)
                             .resizable()
@@ -1105,9 +1370,118 @@ private struct MockupWorkspaceView: View {
                             .padding(34)
                             .opacity(0.72)
                     }
+
+                    if document.showsMockupGrid {
+                        MockupAlignmentGrid(
+                            centeredX: moveTarget == .device
+                                ? abs(document.mockupTransform.offsetX) < 0.012
+                                : abs(document.mockupScreenFraming.offsetX) < 0.03,
+                            centeredY: moveTarget == .device
+                                ? abs(document.mockupTransform.offsetY) < 0.012
+                                : abs(document.mockupScreenFraming.offsetY) < 0.03
+                        )
+                        .padding(22)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                    }
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { gesture in
+                            guard document.hasSelectedMockup else { return }
+
+                            switch moveTarget {
+                            case .device:
+                                if dragStartOffset == nil {
+                                    dragStartOffset = CGPoint(
+                                        x: document.mockupTransform.offsetX,
+                                        y: document.mockupTransform.offsetY
+                                    )
+                                    document.setMockupInteraction(true)
+                                }
+
+                                guard let start = dragStartOffset else { return }
+                                let xScale = max(proxy.size.width * 0.72, 1)
+                                let yScale = max(proxy.size.height * 0.72, 1)
+                                var newX = start.x + gesture.translation.width / xScale
+                                var newY = start.y - gesture.translation.height / yScale
+
+                                newX = min(max(newX, -0.45), 0.45)
+                                newY = min(max(newY, -0.45), 0.45)
+                                if abs(newX) < 0.018 { newX = 0 }
+                                if abs(newY) < 0.018 { newY = 0 }
+
+                                var updated = document.mockupTransform
+                                updated.offsetX = newX
+                                updated.offsetY = newY
+                                document.mockupTransform = updated
+
+                            case .screen:
+                                guard let layers = renderer.frame?.layers else { return }
+
+                                if dragStartScreenOffset == nil {
+                                    var framing = document.mockupScreenFraming
+                                    if framing.zoom < 1.18 {
+                                        framing.zoom = 1.18
+                                        document.mockupScreenFraming = framing
+                                    }
+                                    dragStartScreenOffset = CGPoint(
+                                        x: framing.offsetX,
+                                        y: framing.offsetY
+                                    )
+                                    document.setMockupInteraction(true)
+                                }
+
+                                guard let start = dragStartScreenOffset else { return }
+                                let metrics = screenMotionMetrics(
+                                    for: layers,
+                                    canvasSize: proxy.size,
+                                    zoom: document.mockupScreenFraming.zoom
+                                )
+                                let maxX = max(metrics.maxOffsetX, 0.5)
+                                let maxY = max(metrics.maxOffsetY, 0.5)
+                                let startVisualX = -start.x * maxX
+                                let startVisualY = start.y * maxY
+                                let visualX = min(max(startVisualX + gesture.translation.width, -maxX), maxX)
+                                let visualY = min(max(startVisualY + gesture.translation.height, -maxY), maxY)
+
+                                var framing = document.mockupScreenFraming
+                                framing.offsetX = min(max(-visualX / maxX, -1), 1)
+                                framing.offsetY = min(max(visualY / maxY, -1), 1)
+                                if abs(visualX) < 2 { framing.offsetX = 0 }
+                                if abs(visualY) < 2 { framing.offsetY = 0 }
+                                document.mockupScreenFraming = framing
+                            }
+                        }
+                        .onEnded { _ in
+                            switch moveTarget {
+                            case .device:
+                                dragStartOffset = nil
+                            case .screen:
+                                dragStartScreenOffset = nil
+                            }
+                            document.setMockupInteraction(false)
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    guard document.hasSelectedMockup else { return }
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        switch moveTarget {
+                        case .device:
+                            var updated = document.mockupTransform
+                            updated.offsetX = 0
+                            updated.offsetY = 0
+                            document.mockupTransform = updated
+                        case .screen:
+                            document.mockupScreenFraming = MockupScreenFramingSettings()
+                        }
+                    }
+                    document.flashMockupGrid()
+                }
                 .clipped()
+                .animation(.easeInOut(duration: 0.20), value: document.showsMockupGrid)
             }
             .background {
                 VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
@@ -1117,48 +1491,416 @@ private struct MockupWorkspaceView: View {
             renderer.schedule(document, delayNanoseconds: 20_000_000)
         }
         .onChange(of: document.selectedPhotoMockup) { _, _ in
+            document.mockupScreenFraming = MockupScreenFramingSettings()
             renderer.schedule(document, delayNanoseconds: 20_000_000)
         }
         .onChange(of: document.selectedDeviceBezel) { _, _ in
             renderer.schedule(document, delayNanoseconds: 20_000_000)
         }
         .onChange(of: document.cropRect) { _, _ in
-            renderer.schedule(document, delayNanoseconds: 20_000_000)
+            renderer.schedule(document, delayNanoseconds: 35_000_000)
         }
         .onDisappear {
             renderer.cancel()
         }
     }
+
+    @ViewBuilder
+    private func mockupPreviewContent(
+        frame: MockupPreviewFrame,
+        in canvasSize: CGSize,
+        transform: MockupTransformSettings,
+        horizontalOffset: CGFloat,
+        verticalOffset: CGFloat
+    ) -> some View {
+        if let layers = frame.layers {
+            let metrics = screenMotionMetrics(
+                for: layers,
+                canvasSize: canvasSize,
+                zoom: document.mockupScreenFraming.zoom
+            )
+            let framing = document.mockupScreenFraming
+            let liveX = -framing.offsetX * metrics.maxOffsetX
+            let liveY = framing.offsetY * metrics.maxOffsetY
+            let anchor = UnitPoint(
+                x: layers.screenCenter.x,
+                y: layers.screenCenter.y
+            )
+
+            ZStack {
+                ZStack {
+                    Image(nsImage: layers.screenImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .scaleEffect(framing.zoom, anchor: anchor)
+                        .offset(x: liveX, y: liveY)
+                }
+                .mask {
+                    Image(nsImage: layers.maskImage)
+                        .resizable()
+                        .scaledToFit()
+                }
+
+                Image(nsImage: layers.bezelImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+            }
+            .aspectRatio(layers.canvasSize.width / max(layers.canvasSize.height, 1), contentMode: .fit)
+            .padding(30)
+            .scaleEffect(transform.zoom)
+            .rotationEffect(.degrees(transform.tiltDegrees))
+            .offset(x: horizontalOffset, y: verticalOffset)
+            .compositingGroup()
+            .shadow(
+                color: document.showsMockupGrid ? Color.black.opacity(0.14) : .clear,
+                radius: 7,
+                y: 3
+            )
+        } else if let image = frame.compositeImage {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .padding(30)
+                .scaleEffect(transform.zoom)
+                .rotationEffect(.degrees(transform.tiltDegrees))
+                .offset(x: horizontalOffset, y: verticalOffset)
+                .compositingGroup()
+        }
+    }
+
+    private func screenMotionMetrics(
+        for layers: PhotoMockupPreviewLayers,
+        canvasSize: CGSize,
+        zoom: CGFloat
+    ) -> (maxOffsetX: CGFloat, maxOffsetY: CGFloat) {
+        let availableWidth = max(canvasSize.width - 60, 1)
+        let availableHeight = max(canvasSize.height - 60, 1)
+        let fitScale = min(
+            availableWidth / max(layers.canvasSize.width, 1),
+            availableHeight / max(layers.canvasSize.height, 1)
+        )
+        let screenWidth = layers.screenSize.width * fitScale
+        let screenHeight = layers.screenSize.height * fitScale
+        let extraScale = max(zoom - 1, 0)
+        return (
+            maxOffsetX: max(screenWidth * extraScale / 2, 0),
+            maxOffsetY: max(screenHeight * extraScale / 2, 0)
+        )
+    }
+
+}
+
+private extension CaptureAnnotationDestination {
+    var isClipboardDestination: Bool {
+        if case .capture(.clipboard) = self { return true }
+        return false
+    }
 }
 
 @MainActor
-private final class MockupPreviewRenderer: ObservableObject {
-    @Published private(set) var image: NSImage?
-    private var renderTask: Task<Void, Never>?
+private final class CaptureExportController: ObservableObject {
+    @Published private(set) var isWorking = false
+    @Published private(set) var statusText = ""
+    @Published private(set) var buttonTitle = "Rendering…"
+    private var task: Task<Void, Never>?
 
-    func schedule(_ document: AnnotationDocument, delayNanoseconds: UInt64 = 35_000_000) {
-        renderTask?.cancel()
-        renderTask = Task { [weak self, weak document] in
-            try? await Task.sleep(nanoseconds: delayNanoseconds)
-            guard !Task.isCancelled,
-                  let self,
-                  let document else {
-                return
-            }
+    func run(
+        document: AnnotationDocument,
+        store: ScreenshotStore,
+        destination: CaptureAnnotationDestination
+    ) {
+        guard !isWorking else { return }
 
-            self.image = autoreleasepool {
-                document.renderedMockupBasePreviewImage(maxPixelSize: 1400)
+        isWorking = true
+        statusText = "Rendering full resolution…"
+        buttonTitle = "Rendering…"
+        let workItem = document.makeCaptureExportWorkItem()
+
+        task?.cancel()
+        task = Task { [weak self, weak store] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try workItem.render() }
+            }.value
+
+            guard !Task.isCancelled, let self, let store else { return }
+
+            switch result {
+            case .success(let output):
+                self.statusText = destination.isClipboardDestination ? "Copying to Clipboard…" : "Saving…"
+                self.buttonTitle = destination.isClipboardDestination ? "Copying…" : "Saving…"
+                await Task.yield()
+                let succeeded = store.finishPreparedAnnotatedCapture(output, destination: destination)
+                if !succeeded {
+                    self.isWorking = false
+                    self.statusText = ""
+                }
+            case .failure(let error):
+                self.isWorking = false
+                self.statusText = ""
+                store.reportCaptureRenderFailure(error)
             }
         }
     }
 
+    deinit {
+        task?.cancel()
+    }
+}
+
+private final class CaptureExportWorkItem: @unchecked Sendable {
+    let contentImage: NSImage
+    let photoMockup: PhotoMockupAsset?
+    let legacyBezel: ImportedDeviceBezel?
+    let screenFraming: MockupScreenFramingSettings
+    let transform: MockupTransformSettings
+    let background: AnnotationBackgroundSettings
+
+    init(
+        contentImage: NSImage,
+        photoMockup: PhotoMockupAsset?,
+        legacyBezel: ImportedDeviceBezel?,
+        screenFraming: MockupScreenFramingSettings,
+        transform: MockupTransformSettings,
+        background: AnnotationBackgroundSettings
+    ) {
+        self.contentImage = contentImage
+        self.photoMockup = photoMockup
+        self.legacyBezel = legacyBezel
+        self.screenFraming = screenFraming
+        self.transform = transform
+        self.background = background
+    }
+
+    func render() throws -> PreparedCaptureOutput {
+        let photoProduct = photoMockup?.renderedImage(
+            wrapping: contentImage,
+            screenFraming: screenFraming
+        )
+        let rawProduct = photoProduct ?? legacyBezel?.renderedImage(wrapping: contentImage) ?? contentImage
+        let transformed = (photoMockup != nil || legacyBezel != nil)
+            ? transform.renderedImage(wrapping: rawProduct)
+            : rawProduct
+        let finalImage = background.renderedImage(
+            wrapping: transformed,
+            preserveTransparentEdges: photoMockup != nil || legacyBezel != nil
+        )
+        return try PreparedCaptureOutput.make(from: finalImage)
+    }
+}
+
+@MainActor
+private final class MockupPreviewRenderer: ObservableObject {
+    @Published private(set) var frame: MockupPreviewFrame?
+    private var renderLoopTask: Task<Void, Never>?
+    private var pendingWorkItem: MockupPreviewWorkItem?
+    private var pendingDelayNanoseconds: UInt64 = 0
+
+    func schedule(
+        _ document: AnnotationDocument,
+        maxPixelSize: Int = 980,
+        delayNanoseconds: UInt64 = 50_000_000
+    ) {
+        pendingWorkItem = document.makeMockupPreviewWorkItem(maxPixelSize: maxPixelSize)
+        pendingDelayNanoseconds = delayNanoseconds
+
+        guard renderLoopTask == nil else { return }
+        renderLoopTask = Task { [weak self] in
+            await self?.drainRenderQueue()
+        }
+    }
+
+    private func drainRenderQueue() async {
+        defer {
+            renderLoopTask = nil
+            if pendingWorkItem != nil {
+                schedulePendingLoop()
+            }
+        }
+
+        while !Task.isCancelled, let workItem = pendingWorkItem {
+            let delay = pendingDelayNanoseconds
+            pendingWorkItem = nil
+            pendingDelayNanoseconds = 0
+
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+
+                // A newer request arrived during the debounce window. Skip the stale
+                // frame instead of rendering both and making the preview visibly lag.
+                if pendingWorkItem != nil {
+                    continue
+                }
+            }
+
+            let renderedFrame = await Task.detached(priority: .userInitiated) {
+                autoreleasepool { workItem.render() }
+            }.value
+
+            guard !Task.isCancelled else { return }
+            frame = renderedFrame
+        }
+    }
+
+    private func schedulePendingLoop() {
+        guard renderLoopTask == nil, pendingWorkItem != nil else { return }
+        renderLoopTask = Task { [weak self] in
+            await self?.drainRenderQueue()
+        }
+    }
+
     func cancel() {
-        renderTask?.cancel()
-        renderTask = nil
+        pendingWorkItem = nil
+        renderLoopTask?.cancel()
+        renderLoopTask = nil
     }
 
     deinit {
-        renderTask?.cancel()
+        renderLoopTask?.cancel()
+    }
+}
+
+private final class MockupPreviewWorkItem: @unchecked Sendable {
+    let contentImage: NSImage
+    let photoMockup: PhotoMockupAsset?
+    let legacyBezel: ImportedDeviceBezel?
+    let screenFraming: MockupScreenFramingSettings
+    let maxPixelSize: Int
+
+    init(
+        contentImage: NSImage,
+        photoMockup: PhotoMockupAsset?,
+        legacyBezel: ImportedDeviceBezel?,
+        screenFraming: MockupScreenFramingSettings,
+        maxPixelSize: Int
+    ) {
+        self.contentImage = contentImage
+        self.photoMockup = photoMockup
+        self.legacyBezel = legacyBezel
+        self.screenFraming = screenFraming
+        self.maxPixelSize = maxPixelSize
+    }
+
+    func render() -> MockupPreviewFrame {
+        if let photoMockup,
+           let layers = photoMockup.previewLayers(
+                wrapping: contentImage,
+                maxPixelSize: maxPixelSize
+           ) {
+            return MockupPreviewFrame(compositeImage: nil, layers: layers)
+        }
+
+        let legacyProduct = legacyBezel?.renderedImage(wrapping: contentImage)
+        return MockupPreviewFrame(
+            compositeImage: legacyProduct ?? contentImage,
+            layers: nil
+        )
+    }
+}
+
+private final class MockupPreviewFrame: @unchecked Sendable {
+    let compositeImage: NSImage?
+    let layers: PhotoMockupPreviewLayers?
+
+    init(compositeImage: NSImage?, layers: PhotoMockupPreviewLayers?) {
+        self.compositeImage = compositeImage
+        self.layers = layers
+    }
+}
+
+private final class PhotoMockupPreviewLayers: @unchecked Sendable {
+    let bezelImage: NSImage
+    let screenImage: NSImage
+    let maskImage: NSImage
+    let canvasSize: CGSize
+    let screenCenter: CGPoint
+    let screenSize: CGSize
+
+    init(
+        bezelImage: NSImage,
+        screenImage: NSImage,
+        maskImage: NSImage,
+        canvasSize: CGSize,
+        screenCenter: CGPoint,
+        screenSize: CGSize
+    ) {
+        self.bezelImage = bezelImage
+        self.screenImage = screenImage
+        self.maskImage = maskImage
+        self.canvasSize = canvasSize
+        self.screenCenter = screenCenter
+        self.screenSize = screenSize
+    }
+}
+
+private struct MockupAlignmentGrid: View {
+    let centeredX: Bool
+    let centeredY: Bool
+
+    var body: some View {
+        Canvas { context, size in
+            let thirds = Color.white.opacity(0.18)
+            let center = Color.accentColor.opacity(0.42)
+            let centerStrong = Color.accentColor.opacity(0.78)
+
+            for index in 1...2 {
+                let x = size.width * CGFloat(index) / 3
+                var vertical = Path()
+                vertical.move(to: CGPoint(x: x, y: 0))
+                vertical.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(vertical, with: .color(thirds), lineWidth: 0.8)
+
+                let y = size.height * CGFloat(index) / 3
+                var horizontal = Path()
+                horizontal.move(to: CGPoint(x: 0, y: y))
+                horizontal.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(horizontal, with: .color(thirds), lineWidth: 0.8)
+            }
+
+            var centerV = Path()
+            centerV.move(to: CGPoint(x: size.width / 2, y: 0))
+            centerV.addLine(to: CGPoint(x: size.width / 2, y: size.height))
+            context.stroke(
+                centerV,
+                with: .color(centeredX ? centerStrong : center),
+                style: StrokeStyle(lineWidth: centeredX ? 1.2 : 0.8, dash: [5, 5])
+            )
+
+            var centerH = Path()
+            centerH.move(to: CGPoint(x: 0, y: size.height / 2))
+            centerH.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            context.stroke(
+                centerH,
+                with: .color(centeredY ? centerStrong : center),
+                style: StrokeStyle(lineWidth: centeredY ? 1.2 : 0.8, dash: [5, 5])
+            )
+
+            let safeRect = CGRect(
+                x: size.width * 0.07,
+                y: size.height * 0.07,
+                width: size.width * 0.86,
+                height: size.height * 0.86
+            )
+            context.stroke(
+                Path(roundedRect: safeRect, cornerRadius: 12),
+                with: .color(Color.white.opacity(0.10)),
+                style: StrokeStyle(lineWidth: 0.7, dash: [3, 5])
+            )
+
+            let dotRect = CGRect(
+                x: size.width / 2 - 2.5,
+                y: size.height / 2 - 2.5,
+                width: 5,
+                height: 5
+            )
+            context.fill(
+                Path(ellipseIn: dotRect),
+                with: .color((centeredX && centeredY) ? centerStrong : center)
+            )
+        }
     }
 }
 
@@ -1167,6 +1909,7 @@ private struct SmoothValueSlider: View {
     @Binding var value: CGFloat
     let range: ClosedRange<CGFloat>
     let step: CGFloat
+    var onEditingChanged: (Bool) -> Void = { _ in }
 
     @State private var isDragging = false
 
@@ -1205,6 +1948,9 @@ private struct SmoothValueSlider: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
+                        if !isDragging {
+                            onEditingChanged(true)
+                        }
                         isDragging = true
                         let clampedX = min(max(gesture.location.x - thumbDiameter / 2, 0), usableWidth)
                         let rawFraction = clampedX / usableWidth
@@ -1222,11 +1968,12 @@ private struct SmoothValueSlider: View {
                         withAnimation(.easeOut(duration: 0.12)) {
                             isDragging = false
                         }
+                        onEditingChanged(false)
                     }
             )
         }
         .frame(minHeight: 18)
-        .animation(.easeOut(duration: 0.12), value: isDragging)
+        .animation(.easeInOut(duration: 0.16), value: isDragging)
     }
 }
 
@@ -1238,6 +1985,43 @@ private enum AnnotationTool: CaseIterable {
     case marker
     case text
     case mosaic
+
+    var title: String {
+        switch self {
+        case .arrow: return "Arrow"
+        case .line: return "Line"
+        case .rectangle: return "Rectangle"
+        case .oval: return "Oval"
+        case .marker: return "Marker"
+        case .text: return "Text"
+        case .mosaic: return "Mosaic"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .arrow: return "arrow.up.right"
+        case .line: return "line.diagonal"
+        case .rectangle: return "square"
+        case .oval: return "oval"
+        case .marker: return "highlighter"
+        case .text: return "textformat"
+        case .mosaic: return "square.grid.3x3.fill"
+        }
+    }
+
+    var usesColor: Bool {
+        self != .mosaic
+    }
+
+    var usesStrokeWidth: Bool {
+        switch self {
+        case .arrow, .line, .rectangle, .oval, .marker:
+            return true
+        case .text, .mosaic:
+            return false
+        }
+    }
 }
 
 private enum AnnotationColor: String, CaseIterable, Identifiable {
@@ -1283,12 +2067,15 @@ private final class AnnotationDocument: ObservableObject {
     @Published var cropRect: NSRect
     @Published var backgroundSettings = AnnotationBackgroundSettings()
     @Published var mockupTransform = MockupTransformSettings()
+    @Published var mockupScreenFraming = MockupScreenFramingSettings()
+    @Published var showsMockupGrid = false
     @Published var selectedPhotoMockup: PhotoMockupAsset?
     @Published var selectedDeviceBezel: ImportedDeviceBezel?
     @Published var isTextRecognitionEnabled = false
     @Published var isRecognizingText = false
     @Published var recognizedTextRegions: [RecognizedTextRegion] = []
     private var textRecognitionGeneration = UUID()
+    private var mockupGridHideTask: Task<Void, Never>?
 
     init(image: NSImage) {
         self.image = image
@@ -1369,24 +2156,16 @@ private final class AnnotationDocument: ObservableObject {
 
     func renderedImage() -> NSImage {
         let contentImage = renderedContentImage()
-        let photoProduct = selectedPhotoMockup?.renderedImage(wrapping: contentImage)
+        let photoProduct = selectedPhotoMockup?.renderedImage(
+            wrapping: contentImage,
+            screenFraming: mockupScreenFraming
+        )
         let rawProductImage = photoProduct ?? selectedDeviceBezel?.renderedImage(wrapping: contentImage) ?? contentImage
         let productImage = hasSelectedMockup ? mockupTransform.renderedImage(wrapping: rawProductImage) : rawProductImage
         return backgroundSettings.renderedImage(
             wrapping: productImage,
             preserveTransparentEdges: selectedPhotoMockup != nil || selectedDeviceBezel != nil
         )
-    }
-
-    func renderedMockupBasePreviewImage(maxPixelSize: Int) -> NSImage {
-        let contentImage = Self.resizedForPreview(renderedContentImage(), maxPixelSize: maxPixelSize)
-        let photoProduct = selectedPhotoMockup?.renderedImage(
-            wrapping: contentImage,
-            maxPixelSize: maxPixelSize
-        )
-        let legacyProduct = selectedDeviceBezel?.renderedImage(wrapping: contentImage)
-        let rawProductImage = photoProduct ?? legacyProduct ?? contentImage
-        return Self.resizedForPreview(rawProductImage, maxPixelSize: maxPixelSize)
     }
 
     private static func resizedForPreview(_ image: NSImage, maxPixelSize: Int) -> NSImage {
@@ -1444,6 +2223,50 @@ private final class AnnotationDocument: ObservableObject {
 
     func resetMockupTransform() {
         mockupTransform = MockupTransformSettings()
+    }
+
+    func setMockupInteraction(_ isActive: Bool) {
+        mockupGridHideTask?.cancel()
+
+        if isActive {
+            showsMockupGrid = true
+            return
+        }
+
+        mockupGridHideTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.20)) {
+                self?.showsMockupGrid = false
+            }
+        }
+    }
+
+    func flashMockupGrid() {
+        setMockupInteraction(true)
+        setMockupInteraction(false)
+    }
+
+    func makeCaptureExportWorkItem() -> CaptureExportWorkItem {
+        CaptureExportWorkItem(
+            contentImage: renderedContentImage(),
+            photoMockup: selectedPhotoMockup,
+            legacyBezel: selectedDeviceBezel,
+            screenFraming: mockupScreenFraming,
+            transform: mockupTransform,
+            background: backgroundSettings
+        )
+    }
+
+    func makeMockupPreviewWorkItem(maxPixelSize: Int) -> MockupPreviewWorkItem {
+        let contentImage = Self.resizedForPreview(renderedContentImage(), maxPixelSize: maxPixelSize)
+        return MockupPreviewWorkItem(
+            contentImage: contentImage,
+            photoMockup: selectedPhotoMockup,
+            legacyBezel: selectedDeviceBezel,
+            screenFraming: mockupScreenFraming,
+            maxPixelSize: maxPixelSize
+        )
     }
 
     func resetCrop() {
@@ -1639,6 +2462,18 @@ private enum TextRecognitionService {
         }
 
         return boxes
+    }
+}
+
+private struct MockupScreenFramingSettings: Equatable, Sendable {
+    var zoom: CGFloat = 1.0
+    var offsetX: CGFloat = 0
+    var offsetY: CGFloat = 0
+
+    var isIdentity: Bool {
+        abs(zoom - 1) < 0.0001 &&
+        abs(offsetX) < 0.0001 &&
+        abs(offsetY) < 0.0001
     }
 }
 
@@ -1900,7 +2735,11 @@ private struct PhotoMockupAsset: Identifiable, Codable, Equatable, Sendable {
     let sourcePageURL: URL?
     let credit: String
 
-    func renderedImage(wrapping screenshot: NSImage, maxPixelSize: Int? = nil) -> NSImage? {
+    func renderedImage(
+        wrapping screenshot: NSImage,
+        maxPixelSize: Int? = nil,
+        screenFraming: MockupScreenFramingSettings = MockupScreenFramingSettings()
+    ) -> NSImage? {
         let photoCI: CIImage
         let maskCI: CIImage
         if let maxPixelSize {
@@ -1932,7 +2771,8 @@ private struct PhotoMockupAsset: Identifiable, Codable, Equatable, Sendable {
         let targetHeight=max(hypot(tl.x-bl.x,tl.y-bl.y),hypot(tr.x-br.x,tr.y-br.y))
         guard targetWidth > 4, targetHeight > 4 else { return nil }
         let screenshotCI=CIImage(cgImage:screenshotCG)
-        let fitted=Self.aspectFillCanvas(source:screenshotCI,targetAspect:targetWidth/targetHeight)
+        let fittedBase=Self.aspectFillCanvas(source:screenshotCI,targetAspect:targetWidth/targetHeight)
+        let fitted=Self.applyScreenFraming(fittedBase, settings: screenFraming)
 
         // Bleed the screenshot slightly underneath the physical bezel. Apple's PNG
         // aperture edges are anti-aliased, so mapping exactly to the transparent-pixel
@@ -2018,11 +2858,166 @@ private struct PhotoMockupAsset: Identifiable, Codable, Equatable, Sendable {
         return output
     }
 
+    func previewLayers(
+        wrapping screenshot: NSImage,
+        maxPixelSize: Int
+    ) -> PhotoMockupPreviewLayers? {
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
+              let maskSource = CGImageSourceCreateWithURL(screenMaskURL as CFURL, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
+              let maskThumbnail = CGImageSourceCreateThumbnailAtIndex(maskSource, 0, options as CFDictionary),
+              let screenshotCG = screenshot.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let photoCI = CIImage(cgImage: thumbnail)
+        let maskCI = CIImage(cgImage: maskThumbnail)
+        let extent = photoCI.extent.integral
+        guard extent.width > 1, extent.height > 1 else { return nil }
+
+        let p = quad.points(width: extent.width, height: extent.height)
+        let tl = p.0, tr = p.1, br = p.2, bl = p.3
+        let targetWidth = max(hypot(tr.x - tl.x, tr.y - tl.y), hypot(br.x - bl.x, br.y - bl.y))
+        let targetHeight = max(hypot(tl.x - bl.x, tl.y - bl.y), hypot(tr.x - br.x, tr.y - br.y))
+        guard targetWidth > 4, targetHeight > 4 else { return nil }
+
+        let screenshotCI = CIImage(cgImage: screenshotCG)
+        let fitted = Self.aspectFillCanvas(source: screenshotCI, targetAspect: targetWidth / targetHeight)
+        let center = CGPoint(
+            x: (tl.x + tr.x + br.x + bl.x) / 4,
+            y: (tl.y + tr.y + br.y + bl.y) / 4
+        )
+        let overscanScale: CGFloat = 1.012
+        func overscanned(_ point: CGPoint) -> CGPoint {
+            CGPoint(
+                x: center.x + (point.x - center.x) * overscanScale,
+                y: center.y + (point.y - center.y) * overscanScale
+            )
+        }
+
+        guard let perspective = CIFilter(name: "CIPerspectiveTransform") else { return nil }
+        perspective.setValue(fitted, forKey: kCIInputImageKey)
+        perspective.setValue(CIVector(cgPoint: overscanned(tl)), forKey: "inputTopLeft")
+        perspective.setValue(CIVector(cgPoint: overscanned(tr)), forKey: "inputTopRight")
+        perspective.setValue(CIVector(cgPoint: overscanned(br)), forKey: "inputBottomRight")
+        perspective.setValue(CIVector(cgPoint: overscanned(bl)), forKey: "inputBottomLeft")
+        guard let warped = perspective.outputImage else { return nil }
+
+        let screenLayer = warped.cropped(to: extent)
+        let normalizedMask = maskCI
+            .transformed(by: CGAffineTransform(
+                scaleX: extent.width / max(maskCI.extent.width, 1),
+                y: extent.height / max(maskCI.extent.height, 1)
+            ))
+            .cropped(to: extent)
+        let white = CIImage(color: CIColor(red: 1, green: 1, blue: 1, alpha: 1)).cropped(to: extent)
+        let transparent = CIImage(color: .clear).cropped(to: extent)
+        let alphaMask = white.applyingFilter(
+            "CIBlendWithMask",
+            parameters: [
+                kCIInputBackgroundImageKey: transparent,
+                kCIInputMaskImageKey: normalizedMask
+            ]
+        )
+
+        let renderExtent: CGRect
+        if let visibleBounds {
+            renderExtent = CGRect(
+                x: extent.minX + visibleBounds.minX * extent.width,
+                y: extent.minY + visibleBounds.minY * extent.height,
+                width: visibleBounds.width * extent.width,
+                height: visibleBounds.height * extent.height
+            ).intersection(extent).integral
+        } else {
+            renderExtent = extent
+        }
+        guard renderExtent.width > 1, renderExtent.height > 1 else { return nil }
+
+        func renderImage(_ image: CIImage) -> NSImage? {
+            guard let cg = Self.renderContext.createCGImage(image, from: renderExtent) else { return nil }
+            return NSImage(cgImage: cg, size: NSSize(width: renderExtent.width, height: renderExtent.height))
+        }
+
+        guard let screenImage = renderImage(screenLayer),
+              let maskImage = renderImage(alphaMask),
+              let bezelImage = renderImage(photoCI) else {
+            return nil
+        }
+
+        if overlayStyle != .none {
+            bezelImage.lockFocus()
+            NSColor.black.setFill()
+            if overlayStyle == .dynamicIsland {
+                let islandRect = NSRect(
+                    x: extent.width * 0.405 - renderExtent.minX,
+                    y: extent.height * 0.928 - renderExtent.minY,
+                    width: extent.width * 0.190,
+                    height: extent.height * 0.024
+                )
+                NSBezierPath(
+                    roundedRect: islandRect,
+                    xRadius: islandRect.height / 2,
+                    yRadius: islandRect.height / 2
+                ).fill()
+            }
+            bezelImage.unlockFocus()
+        }
+
+        let centerX = min(max((center.x - renderExtent.minX) / renderExtent.width, 0), 1)
+        let centerYCI = min(max((center.y - renderExtent.minY) / renderExtent.height, 0), 1)
+        return PhotoMockupPreviewLayers(
+            bezelImage: bezelImage,
+            screenImage: screenImage,
+            maskImage: maskImage,
+            canvasSize: renderExtent.size,
+            screenCenter: CGPoint(x: centerX, y: 1 - centerYCI),
+            screenSize: CGSize(width: targetWidth, height: targetHeight)
+        )
+    }
+
     func thumbnailImage(maxPixelSize:Int)->NSImage? {
         guard let source=CGImageSourceCreateWithURL(fileURL as CFURL,nil) else { return nil }
         let options:[CFString:Any]=[kCGImageSourceShouldCache:false,kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:maxPixelSize,kCGImageSourceCreateThumbnailWithTransform:true]
         guard let image=CGImageSourceCreateThumbnailAtIndex(source,0,options as CFDictionary) else { return nil }
         return NSImage(cgImage:image,size:NSSize(width:image.width,height:image.height))
+    }
+
+    private static func applyScreenFraming(
+        _ source: CIImage,
+        settings: MockupScreenFramingSettings
+    ) -> CIImage {
+        let extent = source.extent.integral
+        guard extent.width > 0, extent.height > 0 else { return source }
+
+        let zoom = min(max(settings.zoom, 1), 2.5)
+        guard zoom > 1.0001 || abs(settings.offsetX) > 0.0001 || abs(settings.offsetY) > 0.0001 else {
+            return source
+        }
+
+        let normalized = source.transformed(by: CGAffineTransform(
+            translationX: -extent.minX,
+            y: -extent.minY
+        ))
+        let scaled = normalized.transformed(by: CGAffineTransform(scaleX: zoom, y: zoom))
+        let overflowX = max(scaled.extent.width - extent.width, 0)
+        let overflowY = max(scaled.extent.height - extent.height, 0)
+        let focusX = min(max((settings.offsetX + 1) / 2, 0), 1)
+        let focusY = min(max((settings.offsetY + 1) / 2, 0), 1)
+        let cropOriginX = overflowX * focusX
+        let cropOriginY = overflowY * focusY
+
+        return scaled
+            .transformed(by: CGAffineTransform(
+                translationX: -cropOriginX,
+                y: -cropOriginY
+            ))
+            .cropped(to: CGRect(origin: .zero, size: extent.size))
     }
 
     private static func aspectFillCanvas(source: CIImage, targetAspect: CGFloat) -> CIImage {
