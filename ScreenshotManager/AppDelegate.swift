@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let store = ScreenshotStore()
 
     private var windowController: NSWindowController?
@@ -72,6 +72,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showWindow()
         return true
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.identifier == NSUserInterfaceItemIdentifier("ScreenshotManager.MainWindow") else {
+            return
+        }
+
+        NSApp.terminate(nil)
     }
 
     func openManagerWindow() {
@@ -203,6 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isRestorable = false
         window.minSize = NSSize(width: 920, height: 580)
         window.contentViewController = hostingController
+        window.delegate = self
         window.center()
 
         let controller = NSWindowController(window: window)

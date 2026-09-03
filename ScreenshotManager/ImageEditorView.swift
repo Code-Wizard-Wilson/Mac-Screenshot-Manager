@@ -163,6 +163,7 @@ struct CaptureAnnotationView: View {
         isCustomColorActive ? NSColor(customAnnotationColor) : selectedColor.nsColor
     }
     @State private var textValue = "Text"
+    @State private var selectedAnnotationIndex: Int?
     @StateObject private var keyboardMonitor = AnnotationKeyboardMonitor()
     @StateObject private var exportController = CaptureExportController()
     @State private var showsBackgroundPanel = false
@@ -185,6 +186,7 @@ struct CaptureAnnotationView: View {
                             color: activeAnnotationNSColor,
                             strokeWidth: strokeWidth,
                             textValue: textValue,
+                            onSelectionChanged: handleAnnotationSelection,
                             onCancel: {
                                 store.closeCaptureEditor(animated: true)
                             }
@@ -342,6 +344,9 @@ struct CaptureAnnotationView: View {
                                 Divider().frame(height: 18)
                                 TextField("Text", text: $textValue)
                                     .textFieldStyle(.plain)
+                                    .onChange(of: textValue) { _, newValue in
+                                        updateSelectedTextAnnotation(newValue)
+                                    }
                                     .font(AppTypography.helper)
                                     .padding(.horizontal, 9)
                                     .frame(width: 190, height: 28)
@@ -611,6 +616,7 @@ struct CaptureAnnotationView: View {
                 Button {
                     selectedColor = color
                     isCustomColorActive = false
+                    applyColorToSelectedAnnotation(color.nsColor)
                 } label: {
                     Circle()
                         .fill(color.color)
@@ -646,11 +652,58 @@ struct CaptureAnnotationView: View {
             .popover(isPresented: $showsCustomColorPopover, arrowEdge: .bottom) {
                 ColorPicker("Custom Color", selection: $customAnnotationColor)
                     .padding(16)
-                    .onChange(of: customAnnotationColor) { _, _ in
+                    .onChange(of: customAnnotationColor) { _, newColor in
                         isCustomColorActive = true
+                        applyColorToSelectedAnnotation(NSColor(newColor))
                     }
             }
         }
+    }
+
+    private func handleAnnotationSelection(_ index: Int?) {
+        selectedAnnotationIndex = index
+
+        guard let index,
+              document.annotations.indices.contains(index),
+              let values = document.annotations[index].textEditingValues else {
+            return
+        }
+
+        tool = .text
+        if textValue != values.text {
+            textValue = values.text
+        }
+
+        if let preset = AnnotationColor.allCases.first(where: { $0.nsColor.isEqual(values.color) }) {
+            selectedColor = preset
+            isCustomColorActive = false
+        } else {
+            customAnnotationColor = Color(nsColor: values.color)
+            isCustomColorActive = true
+        }
+    }
+
+    private func updateSelectedTextAnnotation(_ value: String) {
+        guard let index = selectedAnnotationIndex,
+              document.annotations.indices.contains(index),
+              document.annotations[index].textEditingValues != nil else {
+            return
+        }
+
+        let updated = document.annotations[index].replacingText(value)
+        guard updated != nil else { return }
+        document.annotations[index] = updated!
+    }
+
+    private func applyColorToSelectedAnnotation(_ color: NSColor) {
+        guard let index = selectedAnnotationIndex,
+              document.annotations.indices.contains(index),
+              document.annotations[index].textEditingValues != nil else {
+            return
+        }
+
+        guard let updated = document.annotations[index].replacingColor(color) else { return }
+        document.annotations[index] = updated
     }
 
     private var strokeWidthControl: some View {
@@ -687,10 +740,12 @@ struct CaptureAnnotationView: View {
                     ? Color.accentColor
                     : Color.primary.opacity(0.72)
             )
-            .padding(.horizontal, 10)
-            .frame(height: 30)
+            .padding(.horizontal, 11)
+            .frame(minWidth: 88, minHeight: 32)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(
@@ -708,6 +763,7 @@ struct CaptureAnnotationView: View {
                     showsBackgroundPanel ? Color.accentColor.opacity(0.42) : AppTheme.softBorder.opacity(0.7),
                     lineWidth: 0.8
                 )
+                .allowsHitTesting(false)
         }
         .help(showsBackgroundPanel ? "Back to Annotate" : "Open Mockup & Background")
     }
@@ -893,6 +949,7 @@ private struct BackgroundInspectorView: View {
                                     document.selectedPhotoMockup = nil
                                     document.selectedDeviceBezel = nil
                                     document.resetMockupTransform()
+                                    document.mockupScreenFraming = MockupScreenFramingSettings()
                                 } label: {
                                     Label("Remove device", systemImage: "xmark.circle")
                                         .font(AppTypography.metadata.weight(.medium))
@@ -970,6 +1027,45 @@ private struct BackgroundInspectorView: View {
                         }
                     }
 
+                    if document.selectedPhotoMockup != nil {
+                        inspectorCard(title: "Screen", systemImage: "rectangle.inset.filled") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Inside device")
+                                        .font(AppTypography.metadata)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Button("Reset") {
+                                        withAnimation(.easeOut(duration: 0.18)) {
+                                            document.mockupScreenFraming = MockupScreenFramingSettings()
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .font(AppTypography.metadata.weight(.medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .disabled(document.mockupScreenFraming.isIdentity)
+                                }
+
+                                mockupScreenSlider(
+                                    title: "Zoom",
+                                    value: Binding(
+                                        get: { document.mockupScreenFraming.zoom },
+                                        set: { newValue in
+                                            updateMockupScreenFraming { $0.zoom = newValue }
+                                        }
+                                    ),
+                                    range: 1.0...2.5,
+                                    step: 0.01,
+                                    display: { "\(Int(round($0 * 100)))%" }
+                                )
+
+                                Text("Choose Screen in Preview to drag the zoomed screenshot inside the display.")
+                                    .font(AppTypography.metadata)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
 
                     inspectorCard(title: "Background", systemImage: "square.on.square") {
                         VStack(alignment: .leading, spacing: 10) {
@@ -1212,6 +1308,43 @@ private struct BackgroundInspectorView: View {
         document.mockupTransform = settings
     }
 
+    private func mockupScreenSlider(
+        title: String,
+        value: Binding<CGFloat>,
+        range: ClosedRange<CGFloat>,
+        step: CGFloat,
+        display: @escaping (CGFloat) -> String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(title)
+                    .font(AppTypography.helper)
+                Spacer()
+                Text(display(value.wrappedValue))
+                    .font(AppTypography.metadata.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 42, alignment: .trailing)
+            }
+
+            SmoothValueSlider(
+                value: value,
+                range: range,
+                step: step,
+                onEditingChanged: { isEditing in
+                    document.setMockupInteraction(isEditing)
+                }
+            )
+            .frame(height: 18)
+        }
+    }
+
+    private func updateMockupScreenFraming(_ update: (inout MockupScreenFramingSettings) -> Void) {
+        var settings = document.mockupScreenFraming
+        update(&settings)
+        settings.zoom = min(max(settings.zoom, 1), 2.5)
+        document.mockupScreenFraming = settings
+    }
+
     private func backgroundSwatch(_ style: AnnotationBackgroundStyle) -> some View {
         Button { updateSettings { $0.style = style } } label: {
             ZStack {
@@ -1311,15 +1444,18 @@ private struct MockupWorkspaceView: View {
                                         .font(AppTypography.metadata.weight(.semibold))
                                 }
                                 .foregroundStyle(moveTarget == target ? Color.white : Color.secondary)
-                                .padding(.horizontal, 7)
-                                .frame(height: 24)
+                                .padding(.horizontal, 8)
+                                .frame(minWidth: 68, minHeight: 28)
+                                .contentShape(Rectangle())
                                 .background(
                                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                                         .fill(moveTarget == target ? Color.accentColor : Color.clear)
+                                        .allowsHitTesting(false)
                                 )
                                 .scaleEffect(moveTarget == target ? 1 : 0.985)
                             }
                             .buttonStyle(.plain)
+                            .contentShape(Rectangle())
                         }
                     }
                     .padding(2)
@@ -1330,6 +1466,7 @@ private struct MockupWorkspaceView: View {
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(AppTheme.softBorder.opacity(0.7), lineWidth: 0.7)
+                            .allowsHitTesting(false)
                     }
                 }
             }
@@ -3884,6 +4021,7 @@ private struct AnnotationCanvasView: NSViewRepresentable {
     let color: NSColor
     let strokeWidth: CGFloat
     let textValue: String
+    let onSelectionChanged: (Int?) -> Void
     let onCancel: () -> Void
 
     func makeNSView(context: Context) -> AnnotationCanvasNSView {
@@ -3897,6 +4035,7 @@ private struct AnnotationCanvasView: NSViewRepresentable {
         nsView.strokeWidth = strokeWidth
         nsView.textValue = textValue
         nsView.isTextRecognitionEnabled = document.isTextRecognitionEnabled
+        nsView.onSelectionChanged = onSelectionChanged
         nsView.onCancel = onCancel
         nsView.needsDisplay = true
     }
@@ -3931,6 +4070,7 @@ private final class AnnotationCanvasNSView: NSView {
             needsDisplay = true
         }
     }
+    var onSelectionChanged: ((Int?) -> Void)?
     var onCancel: (() -> Void)?
 
     private var dragStart: NSPoint?
@@ -3941,7 +4081,12 @@ private final class AnnotationCanvasNSView: NSView {
     private var isMovingCrop = false
     private var cropMoveStartPoint: NSPoint?
     private var cropMoveStartRect: NSRect?
-    private var selectedAnnotationIndex: Int?
+    private var selectedAnnotationIndex: Int? {
+        didSet {
+            guard oldValue != selectedAnnotationIndex else { return }
+            onSelectionChanged?(selectedAnnotationIndex)
+        }
+    }
     private var annotationInteraction: AnnotationInteraction?
     private var textSelectionStart: NSPoint?
     private var textSelectionCurrent: NSPoint?
@@ -4944,6 +5089,21 @@ private enum ImageAnnotation {
     case marker([NSPoint], NSColor, CGFloat)
     case text(String, NSPoint, NSColor, CGFloat)
     case mosaic(NSRect)
+
+    var textEditingValues: (text: String, color: NSColor)? {
+        guard case .text(let text, _, let color, _) = self else { return nil }
+        return (text, color)
+    }
+
+    func replacingText(_ value: String) -> ImageAnnotation? {
+        guard case .text(_, let point, let color, let fontSize) = self else { return nil }
+        return .text(value, point, color, fontSize)
+    }
+
+    func replacingColor(_ newColor: NSColor) -> ImageAnnotation? {
+        guard case .text(let text, let point, _, let fontSize) = self else { return nil }
+        return .text(text, point, newColor, fontSize)
+    }
 
     func draw(baseImage: NSImage, scale: CGFloat) {
         switch self {

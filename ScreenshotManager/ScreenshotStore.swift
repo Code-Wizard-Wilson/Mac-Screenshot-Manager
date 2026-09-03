@@ -1188,7 +1188,7 @@ final class ScreenshotStore: ObservableObject {
 
         let session = CaptureAnnotationSession(image: image, destination: destination)
         let contentView = CaptureAnnotationView(store: self, session: session)
-        let hostingController = NSHostingController(rootView: contentView)
+        let hostingView = FirstMouseHostingView(rootView: contentView)
         let window = CaptureAnnotationWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -1206,7 +1206,7 @@ final class ScreenshotStore: ObservableObject {
         window.backgroundColor = .clear
         window.isOpaque = false
         window.minSize = NSSize(width: 980, height: 620)
-        window.contentViewController = hostingController
+        window.contentView = hostingView
         window.onCancel = { [weak self] in
             self?.closeCaptureEditor(animated: true)
         }
@@ -1587,6 +1587,12 @@ final class ScreenshotStore: ObservableObject {
 private struct DroppedImageType {
     let identifier: String
     let fileExtension: String
+}
+
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 }
 
 private final class CaptureAnnotationWindow: NSWindow {
