@@ -45,6 +45,16 @@ enum AppTheme {
     static let softBorder = adaptive(light: 0xECEDEF, dark: 0x323232)
     static let selectedBackground = adaptive(light: 0xF0F1F3, dark: 0x2C2C2E)
 
+    // Annotation editor: Claude-inspired warm neutrals with restrained contrast.
+    static let editorCanvasBackground = adaptive(light: 0xF7F6F2, dark: 0xF7F6F2)
+    static let editorSurface = adaptive(light: 0xFFFFFF, dark: 0xFFFFFF)
+    static let editorSurfaceHover = adaptive(light: 0xF7F6F2, dark: 0xF7F6F2)
+    static let editorSelectedBackground = adaptive(light: 0xECEAE4, dark: 0xECEAE4)
+    static let editorInk = adaptive(light: 0x2D2C2A, dark: 0x2D2C2A)
+    static let editorMuted = adaptive(light: 0x77746F, dark: 0x77746F)
+    static let editorBorder = adaptive(light: 0xE4E1DA, dark: 0xE4E1DA)
+    static let editorAccent = adaptive(light: 0xCC785C, dark: 0xCC785C)
+
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

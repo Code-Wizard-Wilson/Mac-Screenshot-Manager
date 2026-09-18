@@ -1200,11 +1200,12 @@ final class ScreenshotStore: ObservableObject {
         window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.AnnotationWindow")
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
+        window.appearance = NSAppearance(named: .aqua)
         // Keep the full-size transparent titlebar, but never let drags inside the
         // annotation canvas/crop handles move the whole window.
         window.isMovableByWindowBackground = false
-        window.backgroundColor = .clear
-        window.isOpaque = false
+        window.backgroundColor = NSColor(calibratedRed: 0.969, green: 0.965, blue: 0.949, alpha: 1)
+        window.isOpaque = true
         window.minSize = NSSize(width: 980, height: 620)
         window.contentView = hostingView
         window.onCancel = { [weak self] in
