@@ -174,7 +174,7 @@ struct CaptureAnnotationView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
                 ZStack(alignment: .bottomTrailing) {
                     if showsBackgroundPanel {
@@ -211,15 +211,22 @@ struct CaptureAnnotationView: View {
                     .layoutPriority(2)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Rectangle()
+                .fill(AppTheme.editorBorder)
+                .frame(height: 1)
 
             annotationToolbar
                 .padding(.horizontal, 16)
-                .padding(.bottom, 14)
-                .zIndex(20)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(AppTheme.editorCanvasBackground)
+                .layoutPriority(1)
         }
         .frame(minWidth: 980, minHeight: 680)
         .background(AppTheme.editorCanvasBackground)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .onExitCommand {
             store.closeCaptureEditor(animated: true)
         }
