@@ -780,7 +780,6 @@ private struct ScreenshotCard: View {
     let onDelete: () -> Void
     @State private var thumbnail: NSImage?
     @State private var isHovering = false
-    @State private var didAppear = false
     @State private var isOpeningPreview = false
 
     var body: some View {
@@ -806,38 +805,40 @@ private struct ScreenshotCard: View {
                             CaptureKindBadge(kind: item.captureKind)
                             Spacer()
                             if isHovering || isSelected {
-                                HStack(spacing: 4) {
-                                    Button { openWithMotion() } label: {
-                                        CardActionPill(title: "Preview", systemImage: "arrow.up.left.and.arrow.down.right")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("Open Preview")
+                                HStack(spacing: 5) {
                                     Button { onEdit() } label: {
                                         CardActionPill(title: "Edit", systemImage: "pencil")
                                     }
                                     .buttonStyle(.plain)
                                     .help("Edit")
-                                    Button { onCopy() } label: {
-                                        CardActionPill(title: "Copy", systemImage: "doc.on.doc")
+
+                                    Menu {
+                                        Button("Open Preview", systemImage: "arrow.up.left.and.arrow.down.right") {
+                                            openWithMotion()
+                                        }
+                                        Button("Copy Image", systemImage: "doc.on.doc") {
+                                            onCopy()
+                                        }
+                                        Divider()
+                                        Button("Delete", systemImage: "trash", role: .destructive) {
+                                            onDelete()
+                                        }
+                                    } label: {
+                                        CardActionPill(title: "More", systemImage: "ellipsis")
                                     }
-                                    .buttonStyle(.plain)
-                                    .help("Copy")
-                                    Button { onDelete() } label: {
-                                        CardActionPill(title: "Delete", systemImage: "trash")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("Delete")
+                                    .menuStyle(.borderlessButton)
+                                    .help("More")
                                 }
-                                .transition(.opacity.combined(with: .move(edge: .trailing)))
+                                .transition(.opacity)
                             }
                         }
                         Spacer()
                     }
                     .padding(7)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
                 }
             }
@@ -857,18 +858,21 @@ private struct ScreenshotCard: View {
             .font(AppTypography.metadata)
             .foregroundStyle(.secondary)
         }
-        .padding(8)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 7))
+        .background(cardBackground, in: RoundedRectangle(cornerRadius: 12))
         .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(cardBorderColor, lineWidth: isOpeningPreview ? 2 : 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(cardBorderColor, lineWidth: isOpeningPreview ? 1.5 : 1)
         }
-        .opacity(didAppear ? 1 : 0)
-        .scaleEffect(cardScale, anchor: .topLeading)
-        .offset(y: didAppear ? 0 : 12)
-        .contentShape(RoundedRectangle(cornerRadius: 7))
-        .clipped()
+        .scaleEffect(cardScale)
+        .shadow(
+            color: .black.opacity(isHovering ? 0.08 : 0),
+            radius: isHovering ? 12 : 0,
+            x: 0,
+            y: isHovering ? 4 : 0
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture(count: 2) {
             openWithMotion()
         }
@@ -885,20 +889,15 @@ private struct ScreenshotCard: View {
         }
         .focusable()
         .onHover { isHovering = $0 }
-        .onAppear {
-            withAnimation(.spring(response: 0.26, dampingFraction: 0.84).delay(0.02)) {
-                didAppear = true
-            }
-        }
         .task(id: item.id) {
             let loadedThumbnail = await store.thumbnail(for: item, maxPixelSize: 640)
             withAnimation(.easeInOut(duration: 0.18)) {
                 thumbnail = loadedThumbnail
             }
         }
-        .animation(.easeInOut(duration: 0.16), value: isSelected)
-        .animation(.easeInOut(duration: 0.14), value: isHovering)
-        .animation(.spring(response: 0.18, dampingFraction: 0.82), value: isOpeningPreview)
+        .animation(AppMotion.normal, value: isSelected)
+        .animation(AppMotion.fast, value: isHovering)
+        .animation(AppMotion.spring, value: isOpeningPreview)
     }
 
     private var cardBackground: Color {
@@ -927,10 +926,10 @@ private struct ScreenshotCard: View {
 
     private var cardScale: CGFloat {
         if isOpeningPreview {
-            return 0.982
+            return 0.985
         }
 
-        return didAppear ? 1 : 0.965
+        return isHovering ? 1.006 : 1
     }
 
     private func openWithMotion() {
@@ -959,7 +958,7 @@ private struct ThumbnailPlaceholderView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(AppTheme.imageWellBackground)
 
             VStack(spacing: 7) {
@@ -989,9 +988,9 @@ private struct CardActionPill: View {
             .foregroundStyle(.white)
             .labelStyle(.iconOnly)
             .frame(width: 24, height: 24)
-            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 6))
+            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 10))
             .overlay {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(.white.opacity(0.16), lineWidth: 1)
             }
     }
@@ -1464,7 +1463,7 @@ private struct PreviewPane: View {
                                 .fill(AppTheme.imageWellBackground)
 
                             AsyncPreviewImageView(store: store, item: item)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                                 .padding(8)
                         }
                         .frame(maxWidth: .infinity)
