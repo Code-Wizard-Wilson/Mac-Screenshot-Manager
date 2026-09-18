@@ -775,7 +775,7 @@ final class ScreenCaptureOverlayView: NSView {
             bounds.fill()
         }
 
-        NSColor.black.withAlphaComponent(0.40).setFill()
+        NSColor.black.withAlphaComponent(0.32).setFill()
         bounds.fill()
 
         // Late CA commits after teardown must not run CoreText HUD layout —
@@ -899,16 +899,20 @@ final class ScreenCaptureOverlayView: NSView {
             NSGraphicsContext.restoreGraphicsState()
         }
 
-        NSColor.controlAccentColor.withAlphaComponent(0.055).setFill()
+        NSColor.white.withAlphaComponent(0.025).setFill()
         selectionPath.fill()
 
-        NSColor.white.withAlphaComponent(0.58).setStroke()
-        selectionPath.lineWidth = 3.2
-        selectionPath.stroke()
+        NSGraphicsContext.saveGraphicsState()
+        let selectionShadow = NSShadow()
+        selectionShadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
+        selectionShadow.shadowBlurRadius = 10
+        selectionShadow.shadowOffset = NSSize(width: 0, height: -2)
+        selectionShadow.set()
 
-        NSColor.controlAccentColor.withAlphaComponent(0.98).setStroke()
-        selectionPath.lineWidth = 1.7
+        NSColor.white.withAlphaComponent(0.94).setStroke()
+        selectionPath.lineWidth = 1.5
         selectionPath.stroke()
+        NSGraphicsContext.restoreGraphicsState()
 
         if rect.width >= 30, rect.height >= 30 {
             drawSelectionSize(rect)
@@ -937,22 +941,44 @@ final class ScreenCaptureOverlayView: NSView {
 
     private func drawSelectionSize(_ rect: NSRect) {
         let scale = window?.screen?.backingScaleFactor ?? 1
-        let text = "\(Int(round(rect.width * scale))) x \(Int(round(rect.height * scale)))"
+        let text = "\(Int(round(rect.width * scale))) × \(Int(round(rect.height * scale)))"
         let attributes = OverlayTextStyle.attributes(
             font: OverlayTextStyle.selectionSizeFont,
-            color: OverlayTextStyle.primaryColor
+            color: OverlayTextStyle.lightPrimaryColor
         )
         let size = OverlayTextStyle.measure(text, attributes: attributes)
+        let bubbleWidth = size.width + 16
+        let bubbleHeight = size.height + 8
+        let preferredY = rect.minY - bubbleHeight - 8
+        let fallbackY = rect.minY + 10
         let bubble = NSRect(
-            x: min(max(rect.maxX - size.width - 18, bounds.minX + 10), bounds.maxX - size.width - 18),
-            y: max(rect.minY + 10, bounds.minY + 10),
-            width: size.width + 12,
-            height: size.height + 7
+            x: min(max(rect.maxX - bubbleWidth, bounds.minX + 10), bounds.maxX - bubbleWidth - 10),
+            y: preferredY >= bounds.minY + 10 ? preferredY : fallbackY,
+            width: bubbleWidth,
+            height: bubbleHeight
         )
 
-        NSColor.black.withAlphaComponent(0.72).setFill()
-        NSBezierPath(roundedRect: bubble, xRadius: 5, yRadius: 5).fill()
-        OverlayTextStyle.draw(text, at: NSPoint(x: bubble.minX + 6, y: bubble.minY + 4), attributes: attributes)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.16)
+        shadow.shadowBlurRadius = 12
+        shadow.shadowOffset = NSSize(width: 0, height: -3)
+        shadow.set()
+
+        NSColor.white.withAlphaComponent(0.94).setFill()
+        NSBezierPath(roundedRect: bubble, xRadius: 7, yRadius: 7).fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        NSColor.black.withAlphaComponent(0.08).setStroke()
+        let border = NSBezierPath(roundedRect: bubble, xRadius: 7, yRadius: 7)
+        border.lineWidth = 0.8
+        border.stroke()
+
+        OverlayTextStyle.draw(
+            text,
+            at: NSPoint(x: bubble.minX + 8, y: bubble.minY + 4),
+            attributes: attributes
+        )
     }
 
     private func drawCursorGuide() {
@@ -1059,22 +1085,47 @@ final class ScreenCaptureOverlayView: NSView {
     }
 
     private func drawHint() {
-        let primary = "Drag to capture   •   Click a window"
-        let secondary = "Tab  Copy color      Esc  Cancel"
+        guard dragStart == nil else {
+            return
+        }
+
+        let primary = "Drag to capture   ·   Click a window"
+        let copyLabel = "Copy color"
+        let cancelLabel = "Cancel"
+
         let primaryAttributes = OverlayTextStyle.attributes(
             font: OverlayTextStyle.hintFont,
-            color: OverlayTextStyle.primaryColor
+            color: OverlayTextStyle.lightPrimaryColor
         )
         let secondaryAttributes = OverlayTextStyle.attributes(
             font: OverlayTextStyle.hintSecondaryFont,
-            color: OverlayTextStyle.secondaryColor
+            color: OverlayTextStyle.lightSecondaryColor
         )
+        let keyAttributes = OverlayTextStyle.attributes(
+            font: OverlayTextStyle.keycapFont,
+            color: OverlayTextStyle.lightPrimaryColor
+        )
+
         let primarySize = OverlayTextStyle.measure(primary, attributes: primaryAttributes)
-        let secondarySize = OverlayTextStyle.measure(secondary, attributes: secondaryAttributes)
-        let width = max(primarySize.width, secondarySize.width) + 34
-        let height: CGFloat = 48
+        let copySize = OverlayTextStyle.measure(copyLabel, attributes: secondaryAttributes)
+        let cancelSize = OverlayTextStyle.measure(cancelLabel, attributes: secondaryAttributes)
+        let tabSize = OverlayTextStyle.measure("⇥", attributes: keyAttributes)
+        let escSize = OverlayTextStyle.measure("esc", attributes: keyAttributes)
+
+        let keyHorizontalPadding: CGFloat = 7
+        let tabWidth = tabSize.width + keyHorizontalPadding * 2
+        let escWidth = escSize.width + keyHorizontalPadding * 2
+        let gap: CGFloat = 8
+        let groupGap: CGFloat = 16
+        let contentWidth = primarySize.width
+            + groupGap
+            + tabWidth + gap + copySize.width
+            + groupGap
+            + escWidth + gap + cancelSize.width
+        let width = contentWidth + 30
+        let height: CGFloat = 42
         let safeTop = window?.screen?.safeAreaInsets.top ?? 0
-        let topMargin = max(66, safeTop + 26)
+        let topMargin = max(64, safeTop + 24)
         let backgroundRect = NSRect(
             x: bounds.midX - width / 2,
             y: bounds.maxY - topMargin - height,
@@ -1084,34 +1135,66 @@ final class ScreenCaptureOverlayView: NSView {
 
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.34)
-        shadow.shadowBlurRadius = 18
-        shadow.shadowOffset = NSSize(width: 0, height: -4)
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.16)
+        shadow.shadowBlurRadius = 28
+        shadow.shadowOffset = NSSize(width: 0, height: -8)
         shadow.set()
-        NSColor.black.withAlphaComponent(0.70).setFill()
-        NSBezierPath(roundedRect: backgroundRect, xRadius: 14, yRadius: 14).fill()
+        NSColor.white.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: backgroundRect, xRadius: 13, yRadius: 13).fill()
         NSGraphicsContext.restoreGraphicsState()
 
-        NSColor.white.withAlphaComponent(0.13).setStroke()
-        let border = NSBezierPath(roundedRect: backgroundRect, xRadius: 14, yRadius: 14)
+        NSColor.black.withAlphaComponent(0.08).setStroke()
+        let border = NSBezierPath(roundedRect: backgroundRect, xRadius: 13, yRadius: 13)
         border.lineWidth = 0.8
         border.stroke()
 
+        var x = backgroundRect.minX + 15
+        let textY = backgroundRect.midY - primarySize.height / 2 + 1
+        OverlayTextStyle.draw(primary, at: NSPoint(x: x, y: textY), attributes: primaryAttributes)
+        x += primarySize.width + groupGap
+
+        let keyY = backgroundRect.midY - 11
+        let tabRect = NSRect(x: x, y: keyY, width: tabWidth, height: 22)
+        drawKeycap("⇥", in: tabRect, attributes: keyAttributes)
+        x += tabWidth + gap
         OverlayTextStyle.draw(
-            primary,
-            at: NSPoint(
-                x: backgroundRect.midX - primarySize.width / 2,
-                y: backgroundRect.minY + 25
-            ),
-            attributes: primaryAttributes
-        )
-        OverlayTextStyle.draw(
-            secondary,
-            at: NSPoint(
-                x: backgroundRect.midX - secondarySize.width / 2,
-                y: backgroundRect.minY + 9
-            ),
+            copyLabel,
+            at: NSPoint(x: x, y: backgroundRect.midY - copySize.height / 2 + 1),
             attributes: secondaryAttributes
+        )
+        x += copySize.width + groupGap
+
+        let escRect = NSRect(x: x, y: keyY, width: escWidth, height: 22)
+        drawKeycap("esc", in: escRect, attributes: keyAttributes)
+        x += escWidth + gap
+        OverlayTextStyle.draw(
+            cancelLabel,
+            at: NSPoint(x: x, y: backgroundRect.midY - cancelSize.height / 2 + 1),
+            attributes: secondaryAttributes
+        )
+    }
+
+    private func drawKeycap(
+        _ text: String,
+        in rect: NSRect,
+        attributes: [NSAttributedString.Key: Any]
+    ) {
+        NSColor(calibratedWhite: 0.95, alpha: 0.98).setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
+
+        NSColor.black.withAlphaComponent(0.09).setStroke()
+        let border = NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5)
+        border.lineWidth = 0.8
+        border.stroke()
+
+        let size = OverlayTextStyle.measure(text, attributes: attributes)
+        OverlayTextStyle.draw(
+            text,
+            at: NSPoint(
+                x: rect.midX - size.width / 2,
+                y: rect.midY - size.height / 2 + 1
+            ),
+            attributes: attributes
         )
     }
 
@@ -1138,14 +1221,16 @@ final class ScreenCaptureOverlayView: NSView {
 fileprivate enum OverlayTextStyle {
     static var primaryColor: NSColor { NSColor.white.withAlphaComponent(0.96) }
     static var secondaryColor: NSColor { NSColor.white.withAlphaComponent(0.74) }
-    static var hintColor: NSColor { NSColor.white.withAlphaComponent(0.88) }
+    static var lightPrimaryColor: NSColor { NSColor(calibratedWhite: 0.08, alpha: 0.96) }
+    static var lightSecondaryColor: NSColor { NSColor(calibratedWhite: 0.34, alpha: 0.92) }
 
     static var hudTitleFont: NSFont { resolvedMonospaced(size: 12, weight: .semibold) }
     static var hudDetailFont: NSFont { resolvedMonospaced(size: 11, weight: .regular) }
     static var selectionSizeFont: NSFont { resolvedMonospaced(size: 11, weight: .medium) }
     static var windowTitleFont: NSFont { NSFont.systemFont(ofSize: 12, weight: .semibold) }
-    static var hintFont: NSFont { NSFont.systemFont(ofSize: 13, weight: .semibold) }
+    static var hintFont: NSFont { NSFont.systemFont(ofSize: 12, weight: .semibold) }
     static var hintSecondaryFont: NSFont { NSFont.systemFont(ofSize: 11, weight: .medium) }
+    static var keycapFont: NSFont { NSFont.systemFont(ofSize: 10, weight: .semibold) }
 
     static func attributes(font: NSFont, color: NSColor) -> [NSAttributedString.Key: Any] {
         [

@@ -127,7 +127,7 @@ struct ContentView: View {
     }
 
     private var sidebarWidth: CGFloat {
-        80
+        64
     }
 
     private func previewWidth(for width: CGFloat) -> CGFloat {
@@ -286,47 +286,20 @@ private struct SidebarView: View {
     let openSettings: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Spacer()
-                .frame(height: 14)
+                .frame(height: 12)
 
             BrandMarkView(isActive: store.isCapturing)
                 .help("Screenshot Manager")
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
 
             RailIconButton(
                 title: "Library",
                 systemImage: "photo.stack",
-                tint: AppTheme.captureBlue,
+                tint: AppTheme.assetInk,
                 isSelected: true
             ) {}
-
-            RailIconButton(
-                title: store.isCapturing ? "Capturing" : "Clipboard",
-                systemImage: "doc.on.clipboard",
-                tint: AppTheme.libraryAmber,
-                isBusy: store.isCapturing,
-                isDisabled: store.isCapturing
-            ) {
-                store.captureToClipboard()
-            }
-
-            RailIconButton(
-                title: "Capture",
-                systemImage: "tray.and.arrow.down",
-                tint: AppTheme.successGreen,
-                isDisabled: store.isCapturing
-            ) {
-                store.captureAndSaveToLibrary()
-            }
-
-            RailIconButton(
-                title: "Refresh",
-                systemImage: "arrow.clockwise",
-                tint: AppTheme.settingsViolet
-            ) {
-                store.refresh()
-            }
 
             if let errorMessage = store.errorMessage,
                errorMessage != ScreenCaptureOverlayError.screenRecordingPermissionRequired.localizedDescription {
@@ -344,7 +317,7 @@ private struct SidebarView: View {
             RailIconButton(
                 title: "Guide",
                 systemImage: "questionmark.circle",
-                tint: AppTheme.libraryAmber
+                tint: AppTheme.assetInk
             ) {
                 showGuide()
             }
@@ -352,17 +325,17 @@ private struct SidebarView: View {
             Button {
                 openSettings()
             } label: {
-                VStack(spacing: 3) {
-                    RailIcon(systemImage: "gearshape", isSelected: false, tint: AppTheme.settingsViolet)
-                    Text("Settings")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
+                RailIcon(
+                    systemImage: "gearshape",
+                    isSelected: false,
+                    tint: AppTheme.assetInk,
+                    foregroundStyle: AnyShapeStyle(AppTheme.assetMuted)
+                )
             }
             .buttonStyle(.plain)
             .help("Settings")
         }
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.sidebarBackground)
     }
@@ -380,20 +353,14 @@ private struct RailIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 3) {
-                RailIcon(
-                    systemImage: systemImage,
-                    isSelected: isSelected,
-                    isHovering: isHovering,
-                    isBusy: isBusy,
-                    tint: tint,
-                    foregroundStyle: foregroundStyle
-                )
-                Text(title)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(isSelected ? tint : .secondary)
-                    .lineLimit(1)
-            }
+            RailIcon(
+                systemImage: systemImage,
+                isSelected: isSelected,
+                isHovering: isHovering,
+                isBusy: isBusy,
+                tint: tint,
+                foregroundStyle: foregroundStyle
+            )
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
@@ -403,11 +370,7 @@ private struct RailIconButton: View {
     }
 
     private var foregroundStyle: AnyShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(.white)
-        }
-
-        return AnyShapeStyle(tint)
+        AnyShapeStyle(isSelected ? AppTheme.assetInk : AppTheme.assetMuted)
     }
 }
 
@@ -424,11 +387,11 @@ private struct RailIcon: View {
         Image(systemName: systemImage)
             .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(foregroundStyle)
-            .frame(width: 32, height: 32)
-            .background(background, in: RoundedRectangle(cornerRadius: 8))
+            .frame(width: 36, height: 36)
+            .background(background, in: RoundedRectangle(cornerRadius: 10))
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.white.opacity(0.18) : AppTheme.softBorder.opacity(isHovering ? 1 : 0), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(AppTheme.softBorder.opacity(isHovering ? 1 : 0), lineWidth: 1)
             }
             .overlay(alignment: .topTrailing) {
                 if isBusy {
@@ -448,14 +411,14 @@ private struct RailIcon: View {
 
     private var background: Color {
         if isSelected {
-            return tint
+            return AppTheme.sidebarIconSelectedBackground
         }
 
         if isHovering {
-            return tint.opacity(0.18)
+            return AppTheme.sidebarIconHoverBackground
         }
 
-        return tint.opacity(0.11)
+        return .clear
     }
 }
 
@@ -696,6 +659,9 @@ private struct LibraryToolbarView: View {
 
             Spacer(minLength: 12)
 
+            SearchField(text: $store.searchText)
+                .frame(width: 260)
+
             Menu {
                 ForEach(LibrarySortOrder.allCases, id: \.self) { order in
                     Button {
@@ -708,18 +674,37 @@ private struct LibraryToolbarView: View {
                         }
                     }
                 }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.up.arrow.down")
-                    Text(sortOrder.rawValue)
+
+                Divider()
+
+                Button("Refresh Library", systemImage: "arrow.clockwise") {
+                    store.refresh()
                 }
-                .font(AppTypography.helper)
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton)
-            .fixedSize()
+            .help("Sort and refresh")
 
-            SearchField(text: $store.searchText)
-                .frame(width: 260)
+            Menu {
+                Button {
+                    store.captureToClipboard()
+                } label: {
+                    Label("Capture to Clipboard", systemImage: "doc.on.clipboard")
+                }
+
+                Button {
+                    store.captureAndSaveToLibrary()
+                } label: {
+                    Label("Capture to Library", systemImage: "tray.and.arrow.down")
+                }
+            } label: {
+                Label(store.isCapturing ? "Capturing…" : "Capture", systemImage: "camera")
+                    .font(AppTypography.itemTitle)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(store.isCapturing)
 
             if store.isLoading {
                 ProgressView()
@@ -728,9 +713,9 @@ private struct LibraryToolbarView: View {
         }
         .padding(.horizontal, 22)
         .padding(.top, 6)
-        .frame(height: 78)
+        .frame(height: 72)
         .background(AppTheme.toolbarBackground)
-        .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.filteredItems.count)
+        .animation(AppMotion.spring, value: store.filteredItems.count)
     }
 
     private var itemCountText: String {
@@ -795,7 +780,6 @@ private struct ScreenshotCard: View {
     let onDelete: () -> Void
     @State private var thumbnail: NSImage?
     @State private var isHovering = false
-    @State private var didAppear = false
     @State private var isOpeningPreview = false
 
     var body: some View {
@@ -821,38 +805,40 @@ private struct ScreenshotCard: View {
                             CaptureKindBadge(kind: item.captureKind)
                             Spacer()
                             if isHovering || isSelected {
-                                HStack(spacing: 4) {
-                                    Button { openWithMotion() } label: {
-                                        CardActionPill(title: "Preview", systemImage: "arrow.up.left.and.arrow.down.right")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("Open Preview")
+                                HStack(spacing: 5) {
                                     Button { onEdit() } label: {
                                         CardActionPill(title: "Edit", systemImage: "pencil")
                                     }
                                     .buttonStyle(.plain)
                                     .help("Edit")
-                                    Button { onCopy() } label: {
-                                        CardActionPill(title: "Copy", systemImage: "doc.on.doc")
+
+                                    Menu {
+                                        Button("Open Preview", systemImage: "arrow.up.left.and.arrow.down.right") {
+                                            openWithMotion()
+                                        }
+                                        Button("Copy Image", systemImage: "doc.on.doc") {
+                                            onCopy()
+                                        }
+                                        Divider()
+                                        Button("Delete", systemImage: "trash", role: .destructive) {
+                                            onDelete()
+                                        }
+                                    } label: {
+                                        CardActionPill(title: "More", systemImage: "ellipsis")
                                     }
-                                    .buttonStyle(.plain)
-                                    .help("Copy")
-                                    Button { onDelete() } label: {
-                                        CardActionPill(title: "Delete", systemImage: "trash")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("Delete")
+                                    .menuStyle(.borderlessButton)
+                                    .help("More")
                                 }
-                                .transition(.opacity.combined(with: .move(edge: .trailing)))
+                                .transition(.opacity)
                             }
                         }
                         Spacer()
                     }
                     .padding(7)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
                 }
             }
@@ -872,18 +858,21 @@ private struct ScreenshotCard: View {
             .font(AppTypography.metadata)
             .foregroundStyle(.secondary)
         }
-        .padding(8)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 7))
+        .background(cardBackground, in: RoundedRectangle(cornerRadius: 12))
         .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(cardBorderColor, lineWidth: isOpeningPreview ? 2 : 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(cardBorderColor, lineWidth: isOpeningPreview ? 1.5 : 1)
         }
-        .opacity(didAppear ? 1 : 0)
-        .scaleEffect(cardScale, anchor: .topLeading)
-        .offset(y: didAppear ? 0 : 12)
-        .contentShape(RoundedRectangle(cornerRadius: 7))
-        .clipped()
+        .scaleEffect(cardScale)
+        .shadow(
+            color: .black.opacity(isHovering ? 0.08 : 0),
+            radius: isHovering ? 12 : 0,
+            x: 0,
+            y: isHovering ? 4 : 0
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture(count: 2) {
             openWithMotion()
         }
@@ -900,20 +889,15 @@ private struct ScreenshotCard: View {
         }
         .focusable()
         .onHover { isHovering = $0 }
-        .onAppear {
-            withAnimation(.spring(response: 0.26, dampingFraction: 0.84).delay(0.02)) {
-                didAppear = true
-            }
-        }
         .task(id: item.id) {
             let loadedThumbnail = await store.thumbnail(for: item, maxPixelSize: 640)
             withAnimation(.easeInOut(duration: 0.18)) {
                 thumbnail = loadedThumbnail
             }
         }
-        .animation(.easeInOut(duration: 0.16), value: isSelected)
-        .animation(.easeInOut(duration: 0.14), value: isHovering)
-        .animation(.spring(response: 0.18, dampingFraction: 0.82), value: isOpeningPreview)
+        .animation(AppMotion.normal, value: isSelected)
+        .animation(AppMotion.fast, value: isHovering)
+        .animation(AppMotion.spring, value: isOpeningPreview)
     }
 
     private var cardBackground: Color {
@@ -942,10 +926,10 @@ private struct ScreenshotCard: View {
 
     private var cardScale: CGFloat {
         if isOpeningPreview {
-            return 0.982
+            return 0.985
         }
 
-        return didAppear ? 1 : 0.965
+        return isHovering ? 1.006 : 1
     }
 
     private func openWithMotion() {
@@ -974,7 +958,7 @@ private struct ThumbnailPlaceholderView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(AppTheme.imageWellBackground)
 
             VStack(spacing: 7) {
@@ -1004,9 +988,9 @@ private struct CardActionPill: View {
             .foregroundStyle(.white)
             .labelStyle(.iconOnly)
             .frame(width: 24, height: 24)
-            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 6))
+            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 10))
             .overlay {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(.white.opacity(0.16), lineWidth: 1)
             }
     }
@@ -1479,7 +1463,7 @@ private struct PreviewPane: View {
                                 .fill(AppTheme.imageWellBackground)
 
                             AsyncPreviewImageView(store: store, item: item)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                                 .padding(8)
                         }
                         .frame(maxWidth: .infinity)
