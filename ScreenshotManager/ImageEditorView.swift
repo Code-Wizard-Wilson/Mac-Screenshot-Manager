@@ -192,10 +192,6 @@ struct CaptureAnnotationView: View {
                             }
                         )
                         .background(AppTheme.editorCanvasBackground)
-
-                        liveTextButton
-                            .padding(.trailing, 18)
-                            .padding(.bottom, 86)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -232,10 +228,135 @@ struct CaptureAnnotationView: View {
     }
 
     private var annotationToolbar: some View {
-        Group {
-            if showsBackgroundPanel {
-                HStack(spacing: 8) {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                if showsBackgroundPanel {
                     mockupButton
+
+                    Spacer(minLength: 12)
+                } else {
+                    toolbarCluster(title: "Tools") {
+                        toolButton(.arrow)
+                        toolButton(.line)
+                        toolButton(.rectangle)
+                        toolButton(.oval)
+                        toolButton(.marker)
+                        toolButton(.text)
+                        toolButton(.mosaic)
+                    }
+
+                    dockDivider
+
+                    toolbarCluster(title: "Adjust") {
+                        toolbarActionButton(
+                            "crop",
+                            title: "Reset Crop",
+                            isEnabled: document.isCropAdjusted
+                        ) {
+                            document.resetCrop()
+                        }
+
+                        toolbarActionButton("rotate.left", title: "Rotate Left") {
+                            document.rotate(clockwise: false)
+                        }
+
+                        toolbarActionButton("rotate.right", title: "Rotate Right") {
+                            document.rotate(clockwise: true)
+                        }
+
+                        toolbarActionButton(
+                            "arrow.left.and.right.righttriangle.left.righttriangle.right",
+                            title: "Flip Horizontal"
+                        ) {
+                            document.flipHorizontal()
+                        }
+
+                        toolbarActionButton(
+                            "arrow.uturn.backward",
+                            title: "Undo",
+                            isEnabled: !document.annotations.isEmpty
+                        ) {
+                            document.undo()
+                        }
+                        .keyboardShortcut("z", modifiers: .command)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    liveTextButton
+                    mockupButton
+                }
+
+                dockDivider
+
+                toolbarUtilityButton("pin", title: "Pin as floating reference window") {
+                    pinCurrentImage()
+                }
+
+                toolbarUtilityButton("xmark", title: "Close") {
+                    store.closeCaptureEditor()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                outputActions
+            }
+            .frame(height: 42)
+
+            if !showsBackgroundPanel {
+                Rectangle()
+                    .fill(AppTheme.editorBorder)
+                    .frame(height: 1)
+                    .padding(.vertical, 7)
+
+                HStack(spacing: 10) {
+                    HStack(spacing: 7) {
+                        Image(systemName: tool.systemImage)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.editorAccent)
+
+                        Text(tool.title)
+                            .font(AppTypography.helper.weight(.semibold))
+                            .foregroundStyle(AppTheme.editorInk)
+                    }
+                    .frame(minWidth: 72, alignment: .leading)
+
+                    if tool.usesColor {
+                        dockDivider
+                        colorPicker
+                    }
+
+                    if tool.usesStrokeWidth {
+                        dockDivider
+                        strokeWidthControl
+                    }
+
+                    if tool == .text {
+                        dockDivider
+
+                        TextField("Text", text: $textValue)
+                            .textFieldStyle(.plain)
+                            .onChange(of: textValue) { _, newValue in
+                                updateSelectedTextAnnotation(newValue)
+                            }
+                            .font(AppTypography.helper)
+                            .foregroundStyle(AppTheme.editorInk)
+                            .padding(.horizontal, 10)
+                            .frame(width: 190, height: 30)
+                            .background(
+                                AppTheme.editorCanvasBackground,
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(AppTheme.editorBorder, lineWidth: 1)
+                            }
+                    } else if tool == .mosaic {
+                        dockDivider
+
+                        Text("Drag over an area to pixelate")
+                            .font(AppTypography.metadata)
+                            .foregroundStyle(AppTheme.editorMuted)
+                    }
 
                     Spacer(minLength: 12)
 
@@ -243,157 +364,29 @@ struct CaptureAnnotationView: View {
                         .font(AppTypography.metadata)
                         .foregroundStyle(AppTheme.editorMuted)
                         .lineLimit(1)
-
-                    toolbarUtilityButton("pin", title: "Pin as floating reference window") {
-                        pinCurrentImage()
-                    }
-
-                    toolbarUtilityButton("xmark", title: "Close") {
-                        store.closeCaptureEditor()
-                    }
-                    .keyboardShortcut(.cancelAction)
-
-                    outputActions
                 }
-            } else {
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        toolbarCluster(title: "Tools") {
-                            toolButton(.arrow)
-                            toolButton(.line)
-                            toolButton(.rectangle)
-                            toolButton(.oval)
-                            toolButton(.marker)
-                            toolButton(.text)
-                            toolButton(.mosaic)
-                        }
-
-                        toolbarCluster(title: "Adjust") {
-                            toolbarActionButton(
-                                "crop",
-                                title: "Reset Crop",
-                                isEnabled: document.isCropAdjusted
-                            ) {
-                                document.resetCrop()
-                            }
-
-                            toolbarActionButton("rotate.left", title: "Rotate Left") {
-                                document.rotate(clockwise: false)
-                            }
-
-                            toolbarActionButton("rotate.right", title: "Rotate Right") {
-                                document.rotate(clockwise: true)
-                            }
-
-                            toolbarActionButton(
-                                "arrow.left.and.right.righttriangle.left.righttriangle.right",
-                                title: "Flip Horizontal"
-                            ) {
-                                document.flipHorizontal()
-                            }
-
-                            toolbarActionButton(
-                                "arrow.uturn.backward",
-                                title: "Undo",
-                                isEnabled: !document.annotations.isEmpty
-                            ) {
-                                document.undo()
-                            }
-                            .keyboardShortcut("z", modifiers: .command)
-                        }
-
-                        Spacer(minLength: 12)
-
-                        mockupButton
-
-                        toolbarUtilityButton("pin", title: "Pin as floating reference window") {
-                            pinCurrentImage()
-                        }
-
-                        toolbarUtilityButton("xmark", title: "Close") {
-                            store.closeCaptureEditor()
-                        }
-                        .keyboardShortcut(.cancelAction)
-
-                        outputActions
-                    }
-
-                    HStack(spacing: 8) {
-                        HStack(spacing: 10) {
-                            HStack(spacing: 7) {
-                                Image(systemName: tool.systemImage)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(AppTheme.editorAccent)
-                                Text(tool.title)
-                                    .font(AppTypography.helper.weight(.semibold))
-                                    .foregroundStyle(AppTheme.editorInk)
-                            }
-                            .frame(minWidth: 72, alignment: .leading)
-
-                            if tool.usesColor {
-                                Rectangle()
-                                    .fill(AppTheme.editorBorder)
-                                    .frame(width: 1, height: 18)
-                                colorPicker
-                            }
-
-                            if tool.usesStrokeWidth {
-                                Rectangle()
-                                    .fill(AppTheme.editorBorder)
-                                    .frame(width: 1, height: 18)
-                                strokeWidthControl
-                            }
-
-                            if tool == .text {
-                                Rectangle()
-                                    .fill(AppTheme.editorBorder)
-                                    .frame(width: 1, height: 18)
-
-                                TextField("Text", text: $textValue)
-                                    .textFieldStyle(.plain)
-                                    .onChange(of: textValue) { _, newValue in
-                                        updateSelectedTextAnnotation(newValue)
-                                    }
-                                    .font(AppTypography.helper)
-                                    .foregroundStyle(AppTheme.editorInk)
-                                    .padding(.horizontal, 10)
-                                    .frame(width: 190, height: 30)
-                                    .background(AppTheme.editorCanvasBackground, in: RoundedRectangle(cornerRadius: 8))
-                            } else if tool == .mosaic {
-                                Rectangle()
-                                    .fill(AppTheme.editorBorder)
-                                    .frame(width: 1, height: 18)
-                                Text("Drag over an area to pixelate")
-                                    .font(AppTypography.metadata)
-                                    .foregroundStyle(AppTheme.editorMuted)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .frame(height: 40)
-                        .background(AppTheme.editorSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .stroke(AppTheme.editorBorder, lineWidth: 1)
-                        }
-                        .shadow(color: .black.opacity(0.055), radius: 12, x: 0, y: 5)
-
-                        Spacer(minLength: 8)
-
-                        Text(captureHint)
-                            .font(AppTypography.metadata)
-                            .foregroundStyle(AppTheme.editorMuted)
-                            .lineLimit(1)
-                            .padding(.horizontal, 12)
-                            .frame(height: 34)
-                            .background(AppTheme.editorSurface.opacity(0.94), in: Capsule())
-                            .overlay {
-                                Capsule()
-                                    .stroke(AppTheme.editorBorder.opacity(0.9), lineWidth: 1)
-                            }
-                    }
-                }
+                .frame(height: 32)
             }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: 1160)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(AppTheme.editorSurface)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(AppTheme.editorBorder, lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.10), radius: 18, x: 0, y: 8)
+    }
+
+    private var dockDivider: some View {
+        Rectangle()
+            .fill(AppTheme.editorBorder)
+            .frame(width: 1, height: 22)
+            .padding(.horizontal, 3)
     }
 
     private var captureHint: String {
@@ -501,17 +494,6 @@ struct CaptureAnnotationView: View {
         HStack(spacing: 2) {
             content()
         }
-        .padding(.horizontal, 5)
-        .frame(height: 40)
-        .background(
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .fill(AppTheme.editorSurface)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(AppTheme.editorBorder, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.055), radius: 12, x: 0, y: 5)
         .help(title)
     }
 
@@ -542,23 +524,19 @@ struct CaptureAnnotationView: View {
             Image(systemName: systemName)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(AppTheme.editorMuted)
-                .frame(width: 38, height: 38)
+                .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(AppTheme.editorSurface)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.clear)
         )
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppTheme.editorBorder, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .help(title)
     }
 
-    private var actionButtonWidth: CGFloat { 100 }
+    private var actionButtonWidth: CGFloat { 86 }
 
     private var outputActions: some View {
         HStack(spacing: 6) {
@@ -568,7 +546,7 @@ struct CaptureAnnotationView: View {
                 } label: {
                     Label(secondarySaveTitle, systemImage: "tray.and.arrow.down")
                         .font(AppTypography.helper.weight(.semibold))
-                        .frame(width: actionButtonWidth, height: 36)
+                        .frame(width: actionButtonWidth, height: 32)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(
@@ -577,14 +555,13 @@ struct CaptureAnnotationView: View {
                         : AppTheme.editorInk
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(AppTheme.editorSurface)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(AppTheme.editorCanvasBackground)
                 )
                 .overlay {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .stroke(AppTheme.editorBorder, lineWidth: 1)
                 }
-                .shadow(color: .black.opacity(0.045), radius: 9, x: 0, y: 4)
                 .disabled(exportController.isWorking)
                 .help("Save the current result as a file in the Screenshot Manager library")
             }
@@ -606,16 +583,18 @@ struct CaptureAnnotationView: View {
                     }
                 }
                 .font(AppTypography.helper.weight(.semibold))
-                .frame(width: exportController.isWorking ? actionButtonWidth + 34 : actionButtonWidth + 12, height: 36)
+                .frame(
+                    width: exportController.isWorking ? actionButtonWidth + 30 : actionButtonWidth + 12,
+                    height: 32
+                )
                 .animation(AppMotion.fast, value: exportController.isWorking)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.white)
             .background(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(AppTheme.editorInk.opacity(exportController.isWorking ? 0.72 : 1))
             )
-            .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
             .disabled(exportController.isWorking)
             .keyboardShortcut(.defaultAction)
             .help("\(finishActionHelp) — Return")
@@ -783,7 +762,7 @@ struct CaptureAnnotationView: View {
                         .scaleEffect(0.72)
                 } else {
                     Image(systemName: "text.viewfinder")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                 }
             }
@@ -792,21 +771,15 @@ struct CaptureAnnotationView: View {
                     ? AppTheme.editorAccent
                     : AppTheme.editorMuted
             )
-            .frame(width: 38, height: 38)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(AppTheme.editorSurface)
-                    .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(
+            .frame(width: 32, height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(
                         document.isTextRecognitionEnabled
-                            ? AppTheme.editorAccent.opacity(0.3)
-                            : AppTheme.editorBorder,
-                        lineWidth: 1
+                            ? AppTheme.editorAccent.opacity(0.09)
+                            : Color.clear
                     )
-            }
+            )
         }
         .buttonStyle(.plain)
         .help(document.isTextRecognitionEnabled ? "Disable Live Text" : "Enable Live Text")
