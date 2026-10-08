@@ -52,6 +52,11 @@ final class HotkeyRecorderControl: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            isRecording = false
+            window?.makeFirstResponder(nil)
+            return
+        }
         guard let capturedHotkey = AppHotkey(event: event) else {
             NSSound.beep()
             return

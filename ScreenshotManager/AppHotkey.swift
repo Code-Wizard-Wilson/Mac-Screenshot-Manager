@@ -41,6 +41,26 @@ struct AppHotkey: Codable, Equatable, Sendable {
         return parts.joined(separator: " + ")
     }
 
+    var compactDisplayString: String {
+        var result = ""
+
+        if modifiers & UInt32(controlKey) != 0 {
+            result += "⌃"
+        }
+        if modifiers & UInt32(optionKey) != 0 {
+            result += "⌥"
+        }
+        if modifiers & UInt32(shiftKey) != 0 {
+            result += "⇧"
+        }
+        if modifiers & UInt32(cmdKey) != 0 {
+            result += "⌘"
+        }
+
+        result += Self.compactKeyName(for: keyCode)
+        return result
+    }
+
     init(keyCode: UInt32, modifiers: UInt32) {
         self.keyCode = keyCode
         self.modifiers = modifiers
@@ -123,6 +143,21 @@ struct AppHotkey: Codable, Equatable, Sendable {
 
     private static func keyName(for keyCode: UInt32) -> String {
         keyNames[keyCode] ?? "Key \(keyCode)"
+    }
+
+    private static func compactKeyName(for keyCode: UInt32) -> String {
+        switch Int(keyCode) {
+        case kVK_Space: return "Space"
+        case kVK_Return: return "↩"
+        case kVK_Tab: return "⇥"
+        case kVK_Escape: return "⎋"
+        case kVK_Delete: return "⌫"
+        case kVK_LeftArrow: return "←"
+        case kVK_RightArrow: return "→"
+        case kVK_UpArrow: return "↑"
+        case kVK_DownArrow: return "↓"
+        default: return keyName(for: keyCode)
+        }
     }
 
     private static let keyNames: [UInt32: String] = [
