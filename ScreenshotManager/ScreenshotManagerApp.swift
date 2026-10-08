@@ -280,6 +280,7 @@ private struct MenuBarFooterButton: View {
 struct SettingsView: View {
     @ObservedObject var store: ScreenshotStore
     @AppStorage(AppPreferenceKeys.showsMenuBarItem) private var showsMenuBarItem = true
+    @AppStorage(AppPreferenceKeys.showsDockIcon) private var showsDockIcon = false
     @AppStorage(AppPreferenceKeys.appearance) private var appearance: AppAppearance = .system
     @State private var selectedSection: SettingsSection = .general
 
@@ -341,6 +342,12 @@ struct SettingsView: View {
         }
         .onChange(of: appearance) { _, value in
             value.apply()
+        }
+        .onChange(of: showsDockIcon) { _, isVisible in
+            NotificationCenter.default.post(
+                name: .screenshotManagerDockVisibilityDidChange,
+                object: isVisible
+            )
         }
     }
 
@@ -433,6 +440,21 @@ struct SettingsView: View {
             }
 
             SettingsCard(title: "App") {
+                SettingsRow(
+                    icon: "dock.rectangle",
+                    tint: AppTheme.assetMuted,
+                    title: "Show in Dock",
+                    detail: showsDockIcon
+                        ? "Show Screenshot Manager in the Dock and Cmd-Tab."
+                        : "Open from Applications or the menu bar."
+                ) {
+                    Toggle("Show in Dock", isOn: $showsDockIcon)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsDivider()
+
                 SettingsRow(
                     icon: "menubar.rectangle",
                     tint: AppTheme.captureBlue,

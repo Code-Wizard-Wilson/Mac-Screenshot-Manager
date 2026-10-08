@@ -10,12 +10,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var statusPopover: NSPopover?
     private var menuBarVisibilityObserver: NSObjectProtocol?
+    private var dockVisibilityObserver: NSObjectProtocol?
     private let clipboardHotkeyID: UInt32 = 1
     private let saveHotkeyID: UInt32 = 2
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         (AppAppearance(rawValue: UserDefaults.standard.string(forKey: AppPreferenceKeys.appearance) ?? "system") ?? .system).apply()
-        NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: AppPreferenceKeys.showsDockIcon) ? .regular : .accessory)
         showWindow()
         registerGlobalHotkeys()
         configureMenuBarVisibility()
@@ -33,6 +34,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
+        dockVisibilityObserver = NotificationCenter.default.addObserver(
+            forName: .screenshotManagerDockVisibilityDidChange,
+            object: nil,
+            queue: .main
+        ) { notification in
+            let visible = notification.object as? Bool ?? false
+            Task { @MainActor in
+                let window = NSApp.keyWindow
+                NSApp.setActivationPolicy(visible ? .regular : .accessory)
+                window?.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+
         store.hotkeysDidChange = { [weak self] in
             self?.registerGlobalHotkeys()
         }
@@ -47,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         GlobalHotkeyManager.shared.unregister()
         if let menuBarVisibilityObserver {
             NotificationCenter.default.removeObserver(menuBarVisibilityObserver)
+        }
+        if let dockVisibilityObserver {
+            NotificationCenter.default.removeObserver(dockVisibilityObserver)
         }
         statusPopover?.close()
         if let statusItem {
@@ -99,8 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func setMenuBarItemVisible(_ visible: Bool) {
         UserDefaults.standard.set(visible, forKey: AppPreferenceKeys.showsMenuBarItem)
-        // The menu bar shortcut is optional; the app remains available in Dock / Cmd-Tab.
-        NSApp.setActivationPolicy(.regular)
 
         if visible {
             guard statusItem == nil else { return }

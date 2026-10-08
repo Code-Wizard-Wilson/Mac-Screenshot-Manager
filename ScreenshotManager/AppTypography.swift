@@ -92,6 +92,7 @@ enum AppTheme {
 enum AppPreferenceKeys {
     static let appearance = "ScreenshotManager.appearance"
     static let showsMenuBarItem = "ScreenshotManager.showsMenuBarItem"
+    static let showsDockIcon = "ScreenshotManager.showsDockIcon"
     static let didCompleteOnboarding = "ScreenshotManager.didCompleteOnboarding"
 }
 
@@ -113,6 +114,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
 
 extension Notification.Name {
+    static let screenshotManagerDockVisibilityDidChange = Notification.Name(
+        "ScreenshotManager.DockVisibilityDidChange"
+    )
     static let screenshotManagerMenuBarVisibilityDidChange = Notification.Name(
         "ScreenshotManager.MenuBarVisibilityDidChange"
     )

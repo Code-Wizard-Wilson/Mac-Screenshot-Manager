@@ -1,6 +1,6 @@
 # macOS interface refinement
 
-The library, settings, menu panel and annotation editor share System / Light / Dark appearance. Select it in Settings → General → Appearance. Warm neutral surfaces, muted taupe accents and subdued controls reduce glare in both themes. Native glass panels respect Reduce Transparency; transitions respect Reduce Motion. Window closing keeps the app running, and the app remains available in the Dock and Cmd-Tab independently of the menu bar item.
+The library, settings, menu panel and annotation editor share System / Light / Dark appearance. Select it in Settings → General → Appearance. Warm neutral surfaces, muted taupe accents and subdued controls reduce glare in both themes. Native glass panels respect Reduce Transparency; transitions respect Reduce Motion. Window closing keeps the app running. Settings → General → Show in Dock controls Dock and Cmd-Tab visibility immediately, independently of the menu bar item. It defaults to off; the app still opens from Applications, Spotlight or the menu bar. LSUIElement avoids a Dock icon flashing during startup.
 
 Save and Copy have full rectangular hit areas, hover/press feedback, stable widths while exporting and contrasting foregrounds in both themes. Export failures appear in the editor. Keyboard monitoring is scoped to each editor session and leaves text input alone. Cancelling the editor cancels pending export work.
 
