@@ -57,6 +57,7 @@ final class ScreenshotStore: ObservableObject {
     private let folderDefaultsKey = "ScreenshotManager.folderURL"
     private let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "heif", "tiff", "webp"]
     private var noticeClearTask: Task<Void, Never>?
+    private var refreshGeneration = UUID()
     private var captureEditorWindowController: NSWindowController?
     private var captureEditorActionInProgress = false
     private var previewWindowController: NSWindowController?
@@ -112,6 +113,10 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func updateClipboardHotkey(_ hotkey: AppHotkey) {
+        guard hotkey != saveHotkey else {
+            showHotkeyRegistrationFailed(hotkey, name: "copy: already used by Save capture")
+            return
+        }
         guard clipboardHotkey != hotkey else {
             return
         }
@@ -128,6 +133,10 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func updateSaveHotkey(_ hotkey: AppHotkey) {
+        guard hotkey != clipboardHotkey else {
+            showHotkeyRegistrationFailed(hotkey, name: "save: already used by Copy capture")
+            return
+        }
         guard saveHotkey != hotkey else {
             return
         }
@@ -144,6 +153,8 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func refresh(selecting selectedURL: URL? = nil) {
+        let generation = UUID()
+        refreshGeneration = generation
         isLoading = true
         errorMessage = nil
 
@@ -154,9 +165,10 @@ final class ScreenshotStore: ObservableObject {
             do {
                 let scannedItems = try Self.scanFolder(folderURL, imageExtensions: imageExtensions)
                 await MainActor.run {
+                    guard self.refreshGeneration == generation else { return }
                     self.items = self.temporaryItems + scannedItems
                     if let selectedURL {
-                        self.selectedItem = self.items.first { $0.url == selectedURL } ?? self.items.first
+                        self.selectedItem = self.items.first { $0.url.standardizedFileURL == selectedURL.standardizedFileURL } ?? self.items.first
                     } else {
                         self.selectedItem = self.selectedItem.flatMap { selected in
                             self.items.first(where: { $0.id == selected.id })
@@ -166,6 +178,7 @@ final class ScreenshotStore: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    guard self.refreshGeneration == generation else { return }
                     self.items = self.temporaryItems
                     self.selectedItem = self.temporaryItems.first
                     self.errorMessage = error.localizedDescription
@@ -563,9 +576,13 @@ final class ScreenshotStore: ObservableObject {
     }
 
     func copy(_ item: ScreenshotItem) {
-        guard let image = image(for: item) else { return }
+        guard let image = image(for: item) else {
+            showNotice(title: "Copy Failed", detail: "Could not load this screenshot.", systemImage: "exclamationmark.triangle", tone: .failure)
+            return
+        }
         do {
             try Self.writeImageToPasteboard(image)
+            showNotice(title: "Copied to Clipboard", detail: item.fileName, systemImage: "checkmark.circle.fill", tone: .success)
         } catch {
             errorMessage = error.localizedDescription
             showNotice(
@@ -596,8 +613,7 @@ final class ScreenshotStore: ObservableObject {
         try writePNGDataToPasteboard(prepared.pngData)
     }
 
-    private static func writePNGDataToPasteboard(_ pngData: Data) throws {
-        let pasteboard = NSPasteboard.general
+    static func writePNGDataToPasteboard(_ pngData: Data, pasteboard: NSPasteboard = .general) throws {
         pasteboard.clearContents()
         pasteboard.declareTypes([.png], owner: nil)
         let written = pasteboard.setData(pngData, forType: .png)
@@ -935,14 +951,16 @@ final class ScreenshotStore: ObservableObject {
 
     func loadImage(for item: ScreenshotItem) async -> NSImage? {
         let url = temporaryImageURLs[item.id] ?? item.url
-        return await Task.detached(priority: .userInitiated) {
-            NSImage(contentsOf: url)
+        let data = await Task.detached(priority: .userInitiated) {
+            try? Data(contentsOf: url)
         }.value
+        guard !Task.isCancelled, let data else { return nil }
+        return NSImage(data: data)
     }
 
     func thumbnail(for item: ScreenshotItem, maxPixelSize: Int) async -> NSImage? {
         let url = temporaryImageURLs[item.id] ?? item.url
-        return await Task.detached(priority: .utility) {
+        let image = await Task.detached(priority: .utility) { () -> CGImage? in
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -955,8 +973,10 @@ final class ScreenshotStore: ObservableObject {
                 return nil
             }
 
-            return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            return image
         }.value
+        guard !Task.isCancelled, let image else { return nil }
+        return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
     }
 
     func closeCaptureEditor(animated: Bool = false) {
@@ -968,13 +988,13 @@ final class ScreenshotStore: ObservableObject {
 
         captureEditorWindowController = nil
 
-        guard animated, window.isVisible else {
+        guard animated, window.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             window.close()
             return
         }
 
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.14
+            context.duration = 0.18
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 0
         } completionHandler: {
@@ -1197,22 +1217,21 @@ final class ScreenshotStore: ObservableObject {
         )
         window.title = "Annotate"
         window.titleVisibility = .hidden
-        window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.AnnotationWindow")
+        window.identifier = session.windowIdentifier
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
-        window.appearance = NSAppearance(named: .darkAqua)
         // Keep the full-size transparent titlebar, but never let drags inside the
         // annotation canvas/crop handles move the whole window.
         window.isMovableByWindowBackground = false
-        window.backgroundColor = NSColor(calibratedWhite: 0.075, alpha: 1)
-        window.isOpaque = true
-        window.minSize = NSSize(width: 980, height: 620)
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.minSize = NSSize(width: 1040, height: 720)
         window.contentView = hostingView
         window.onCancel = { [weak self] in
             self?.closeCaptureEditor(animated: true)
         }
         window.center()
-        window.isReleasedWhenClosed = true
+        window.isReleasedWhenClosed = false
         window.isRestorable = false
 
         let controller = NSWindowController(window: window)
@@ -1230,10 +1249,11 @@ final class ScreenshotStore: ObservableObject {
         window.alphaValue = 0
 
         controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.24
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 1
         }
@@ -1590,7 +1610,7 @@ private struct DroppedImageType {
     let fileExtension: String
 }
 
-private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
     }
@@ -1600,7 +1620,7 @@ private final class CaptureAnnotationWindow: NSWindow {
     var onCancel: (() -> Void)?
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.type == .keyDown, event.keyCode == 53 {
+        if event.type == .keyDown, event.keyCode == 53, !(firstResponder is NSTextView) {
             onCancel?()
             return true
         }
@@ -1660,6 +1680,10 @@ struct CaptureAnnotationSession: Identifiable {
     let id = UUID()
     let image: NSImage
     let destination: CaptureAnnotationDestination
+
+    var windowIdentifier: NSUserInterfaceItemIdentifier {
+        NSUserInterfaceItemIdentifier("ScreenshotManager.AnnotationWindow.\(id)")
+    }
 }
 
 enum CaptureAnnotationDestination {

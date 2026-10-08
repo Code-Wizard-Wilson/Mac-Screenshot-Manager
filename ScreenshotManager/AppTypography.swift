@@ -2,58 +2,75 @@ import AppKit
 import SwiftUI
 
 enum AppTypography {
-    static let productTitle = Font.system(size: 15, weight: .semibold, design: .default)
+    static let productTitle = Font.system(size: 14, weight: .semibold, design: .default)
+    static let eyebrow = Font.system(size: 10, weight: .semibold, design: .default)
     static let sectionTitle = Font.system(size: 13, weight: .semibold, design: .default)
-    static let paneTitle = Font.system(size: 19, weight: .semibold, design: .default)
+    static let paneTitle = Font.system(size: 22, weight: .medium, design: .default)
     static let itemTitle = Font.system(size: 13, weight: .medium, design: .default)
-    static let metadata = Font.system(size: 11, weight: .regular, design: .default).monospacedDigit()
+    static let metadata = Font.system(size: 10.5, weight: .regular, design: .monospaced)
     static let helper = Font.system(size: 12, weight: .regular, design: .default)
 }
 
 enum AppMotion {
-    static let fast = Animation.easeOut(duration: 0.12)
-    static let normal = Animation.easeInOut(duration: 0.18)
-    static let spring = Animation.spring(response: 0.28, dampingFraction: 0.88)
+    static let fast = Animation.easeOut(duration: 0.18)
+    static let normal = Animation.smooth(duration: 0.26, extraBounce: 0)
+    static let spring = Animation.spring(response: 0.36, dampingFraction: 1)
+}
+
+struct RespectMotionPreferences: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.transaction { transaction in
+            if reduceMotion {
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
+        }
+    }
 }
 
 enum AppTheme {
-    static let windowBackground = adaptive(light: 0xF7F7F8, dark: 0x151515)
-    static let sidebarBackground = adaptive(light: 0xFAFAFA, dark: 0x171717)
-    static let contentBackground = adaptive(light: 0xF7F7F8, dark: 0x1B1B1B)
-    static let toolbarBackground = adaptive(light: 0xFFFFFF, dark: 0x1B1B1B)
-    static let panelBackground = adaptive(light: 0xFFFFFF, dark: 0x202020)
-    static let cardBackground = adaptive(light: 0xFFFFFF, dark: 0x242424)
-    static let cardHoverBackground = adaptive(light: 0xF4F4F5, dark: 0x2B2B2B)
-    static let imageWellBackground = adaptive(light: 0xF1F1F3, dark: 0x111111)
-    static let searchFieldBackground = adaptive(light: 0xF4F4F5, dark: 0x242424)
-    static let searchFocusedBackground = adaptive(light: 0xFFFFFF, dark: 0x2B2B2B)
-    static let sidebarIconBackground = adaptive(light: 0xF4F4F5, dark: 0x242424)
-    static let sidebarIconHoverBackground = adaptive(light: 0xEEEEF0, dark: 0x303030)
-    static let sidebarIconSelectedBackground = adaptive(light: 0xEEEEF0, dark: 0x343434)
+    // A warm neutral system inspired by Codex: quiet chrome, strong content
+    // contrast, and one restrained accent instead of per-feature colors.
+    static let windowBackground = adaptive(light: 0xF1F1EE, dark: 0x121211)
+    static let sidebarBackground = adaptive(light: 0xEAEAE6, dark: 0x171716)
+    static let contentBackground = adaptive(light: 0xF0EFEC, dark: 0x232322)
+    static let toolbarBackground = adaptive(light: 0xF0EFEC, dark: 0x232322)
+    static let panelBackground = adaptive(light: 0xF3F3F0, dark: 0x20201E)
+    static let cardBackground = adaptive(light: 0xF5F4F1, dark: 0x292928)
+    static let cardHoverBackground = adaptive(light: 0xF0F0EC, dark: 0x292927)
+    static let imageWellBackground = adaptive(light: 0xE9E9E5, dark: 0x0E0E0D)
+    static let searchFieldBackground = adaptive(light: 0xECECE8, dark: 0x242422)
+    static let searchFocusedBackground = adaptive(light: 0xF5F4F1, dark: 0x30302E)
+    static let sidebarIconBackground = adaptive(light: 0xE2E2DD, dark: 0x222220)
+    static let sidebarIconHoverBackground = adaptive(light: 0xDEDED9, dark: 0x292927)
+    static let sidebarIconSelectedBackground = adaptive(light: 0xDCDCD6, dark: 0x30302D)
 
-    // Transitional semantic aliases used by the current UI. The next UI pass
-    // removes per-section colors and keeps one accent plus destructive red.
-    static let captureBlue = Color.accentColor
-    static let libraryAmber = adaptive(light: 0x60646C, dark: 0xB7B7BD)
-    static let settingsViolet = adaptive(light: 0x60646C, dark: 0xB7B7BD)
-    static let successGreen = Color.accentColor
+    static let accent = adaptive(light: 0x746B60, dark: 0xABA397)
+    static let accentSoft = adaptive(light: 0xE6E2DB, dark: 0x37342F)
+    static let primaryButtonBackground = adaptive(light: 0x494743, dark: 0x55524C)
+    static let primaryButtonForeground = adaptive(light: 0xF6F4EF, dark: 0xF0EEE9)
+    static let captureBlue = accent
+    static let libraryAmber = adaptive(light: 0x666660, dark: 0xB4B4AD)
+    static let settingsViolet = adaptive(light: 0x666660, dark: 0xB4B4AD)
+    static let successGreen = adaptive(light: 0x557665, dark: 0x92B09F)
     static let dangerCoral = adaptive(light: 0xD70015, dark: 0xFF6961)
 
-    static let assetInk = adaptive(light: 0x18181B, dark: 0xF4F4F5)
-    static let assetMuted = adaptive(light: 0x8A8A93, dark: 0x8E8E93)
-    static let border = adaptive(light: 0xE5E7EB, dark: 0x3B3B3B)
-    static let softBorder = adaptive(light: 0xECEDEF, dark: 0x323232)
-    static let selectedBackground = adaptive(light: 0xF0F1F3, dark: 0x2C2C2E)
+    static let assetInk = adaptive(light: 0x353430, dark: 0xDEDDD7)
+    static let assetMuted = adaptive(light: 0x777771, dark: 0xA2A29C)
+    static let border = adaptive(light: 0xDDDBD5, dark: 0x3B3B37)
+    static let softBorder = adaptive(light: 0xE4E2DC, dark: 0x343431)
+    static let selectedBackground = adaptive(light: 0xE8E8E3, dark: 0x2D2D2A)
 
-    // Annotation editor: focused dark workspace with restrained contrast.
-    static let editorCanvasBackground = Color(red: 0.075, green: 0.075, blue: 0.078)
-    static let editorSurface = Color(red: 0.125, green: 0.125, blue: 0.132)
-    static let editorSurfaceHover = Color(red: 0.165, green: 0.165, blue: 0.172)
-    static let editorSelectedBackground = Color(red: 0.205, green: 0.205, blue: 0.215)
-    static let editorInk = Color(red: 0.95, green: 0.95, blue: 0.955)
-    static let editorMuted = Color(red: 0.63, green: 0.63, blue: 0.66)
-    static let editorBorder = Color(red: 0.235, green: 0.235, blue: 0.25)
-    static let editorAccent = Color(red: 0.80, green: 0.47, blue: 0.36)
+    static let editorCanvasBackground = adaptive(light: 0xE7E6E2, dark: 0x222221)
+    static let editorSurface = adaptive(light: 0xF1F0EC, dark: 0x2D2D2A)
+    static let editorSurfaceHover = cardHoverBackground
+    static let editorSelectedBackground = selectedBackground
+    static let editorInk = assetInk
+    static let editorMuted = assetMuted
+    static let editorBorder = softBorder
+    static let editorAccent = accent
 
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -73,8 +90,25 @@ enum AppTheme {
 }
 
 enum AppPreferenceKeys {
+    static let appearance = "ScreenshotManager.appearance"
     static let showsMenuBarItem = "ScreenshotManager.showsMenuBarItem"
     static let didCompleteOnboarding = "ScreenshotManager.didCompleteOnboarding"
+}
+
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    @MainActor
+    func apply() {
+        switch self {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
 }
 
 

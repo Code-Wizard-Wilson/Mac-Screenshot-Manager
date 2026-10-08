@@ -188,14 +188,13 @@ struct CaptureAnnotationView: View {
                             textValue: textValue,
                             onSelectionChanged: handleAnnotationSelection,
                             onCancel: {
-                                store.closeCaptureEditor(animated: true)
+                                cancelCapture()
                             }
                         )
-                        .background(AppTheme.editorCanvasBackground)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(AppTheme.editorCanvasBackground)
+                .background(AppTheme.editorCanvasBackground.opacity(0.65))
 
                 if showsBackgroundPanel {
                     Rectangle()
@@ -207,7 +206,7 @@ struct CaptureAnnotationView: View {
                         onBack: { showsBackgroundPanel = false }
                     )
                     .frame(width: 292)
-                    .background(AppTheme.editorSurface)
+                    .background { GlassSurface(material: .sidebar, tint: AppTheme.editorSurface) }
                     .layoutPriority(2)
                 }
             }
@@ -221,17 +220,33 @@ struct CaptureAnnotationView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity)
-                .background(AppTheme.editorCanvasBackground)
+                .background { GlassSurface(material: .underWindowBackground, tint: AppTheme.editorSurface) }
                 .layoutPriority(1)
         }
-        .frame(minWidth: 980, minHeight: 680)
-        .background(AppTheme.editorCanvasBackground)
-        .preferredColorScheme(.dark)
+        .frame(minWidth: 1040, minHeight: 680)
+        .background { GlassSurface(material: .underWindowBackground, tint: AppTheme.editorCanvasBackground) }
+        .alert("Export failed", isPresented: Binding(
+            get: { exportController.errorMessage != nil },
+            set: { if !$0 { exportController.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { exportController.errorMessage = nil }
+        } message: {
+            Text(exportController.errorMessage ?? "Please try again.")
+        }
         .onExitCommand {
-            store.closeCaptureEditor(animated: true)
+            cancelCapture()
         }
         .onAppear(perform: installKeyboardMonitor)
-        .onDisappear(perform: removeKeyboardMonitor)
+        .onDisappear {
+            removeKeyboardMonitor()
+            exportController.cancel()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
+            guard (notification.object as? NSWindow)?.identifier == session.windowIdentifier else { return }
+            exportController.cancel()
+            removeKeyboardMonitor()
+        }
+        .modifier(RespectMotionPreferences())
     }
 
     private var annotationToolbar: some View {
@@ -301,7 +316,7 @@ struct CaptureAnnotationView: View {
                 }
 
                 toolbarUtilityButton("xmark", title: "Close") {
-                    store.closeCaptureEditor()
+                    cancelCapture()
                 }
                 .keyboardShortcut(.cancelAction)
 
@@ -386,7 +401,7 @@ struct CaptureAnnotationView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(AppTheme.editorBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.10), radius: 18, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
     }
 
     private var dockDivider: some View {
@@ -543,7 +558,7 @@ struct CaptureAnnotationView: View {
         .help(title)
     }
 
-    private var actionButtonWidth: CGFloat { 86 }
+    private var actionButtonWidth: CGFloat { 92 }
 
     private var outputActions: some View {
         HStack(spacing: 6) {
@@ -553,22 +568,10 @@ struct CaptureAnnotationView: View {
                 } label: {
                     Label(secondarySaveTitle, systemImage: "tray.and.arrow.down")
                         .font(AppTypography.helper.weight(.semibold))
-                        .frame(width: actionButtonWidth, height: 32)
+                        .frame(width: actionButtonWidth, height: 36)
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(
-                    exportController.isWorking
-                        ? AppTheme.editorMuted.opacity(0.45)
-                        : AppTheme.editorInk
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(AppTheme.editorCanvasBackground)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .stroke(AppTheme.editorBorder, lineWidth: 1)
-                }
+                .buttonStyle(EditorOutputButtonStyle(isPrimary: false))
                 .disabled(exportController.isWorking)
                 .help("Save the current result as a file in the Screenshot Manager library")
             }
@@ -580,28 +583,23 @@ struct CaptureAnnotationView: View {
                     if exportController.isWorking {
                         ProgressView()
                             .controlSize(.small)
-                            .tint(.white)
+                            .tint(AppTheme.primaryButtonForeground)
                         Text(exportController.buttonTitle)
                     } else {
                         Image(systemName: finishActionIcon)
                         Text(finishActionTitle)
                         Text("↩")
-                            .foregroundStyle(Color.white.opacity(0.58))
+                            .foregroundStyle(AppTheme.primaryButtonForeground.opacity(0.65))
                     }
                 }
                 .font(AppTypography.helper.weight(.semibold))
                 .frame(
-                    width: exportController.isWorking ? actionButtonWidth + 30 : actionButtonWidth + 12,
-                    height: 32
+                    width: actionButtonWidth + 30,
+                    height: 36
                 )
-                .animation(AppMotion.fast, value: exportController.isWorking)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(AppTheme.editorInk.opacity(exportController.isWorking ? 0.72 : 1))
-            )
+            .buttonStyle(EditorOutputButtonStyle(isPrimary: true))
             .disabled(exportController.isWorking)
             .keyboardShortcut(.defaultAction)
             .help("\(finishActionHelp) — Return")
@@ -806,6 +804,11 @@ struct CaptureAnnotationView: View {
         )
     }
 
+    private func cancelCapture() {
+        exportController.cancel()
+        store.closeCaptureEditor(animated: true)
+    }
+
     private func pinCurrentImage() {
         let title: String
         switch session.destination {
@@ -822,17 +825,23 @@ struct CaptureAnnotationView: View {
 
     private func installKeyboardMonitor() {
         let destination = session.destination
+        let windowIdentifier = session.windowIdentifier
 
         keyboardMonitor.install { [weak store, weak document, weak exportController] event in
+            guard event.window?.identifier == windowIdentifier,
+                  !(event.window?.firstResponder is NSTextView) else {
+                return event
+            }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let isReturn = event.keyCode == 36 || event.keyCode == 76
 
             if event.keyCode == 53 {
+                exportController?.cancel()
                 store?.closeCaptureEditor(animated: true)
                 return nil
             }
 
-            let blockingModifiers = flags.intersection([.shift, .option, .control])
+            let blockingModifiers = flags.intersection([.shift, .option, .control, .command])
             let returnShouldFinish = isReturn && blockingModifiers.isEmpty
 
             guard returnShouldFinish,
@@ -852,9 +861,37 @@ struct CaptureAnnotationView: View {
     }
 }
 
+private struct EditorOutputButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isPrimary ? AppTheme.primaryButtonForeground : AppTheme.editorInk)
+            .background {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isPrimary ? AppTheme.primaryButtonBackground : (isHovering ? AppTheme.editorSurfaceHover : AppTheme.editorSurface))
+                    .opacity(configuration.isPressed ? 0.78 : 1)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(isPrimary ? Color.clear : AppTheme.editorBorder, lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .contentShape(Rectangle())
+            .opacity(isEnabled ? 1 : 0.55)
+            .onHover { isHovering = $0 }
+            .animation(AppMotion.fast, value: isHovering)
+            .animation(AppMotion.fast, value: configuration.isPressed)
+    }
+}
+
 @MainActor
 private final class AnnotationKeyboardMonitor: ObservableObject {
-    private var monitor: Any?
+    // Installation/removal happen on MainActor; the opaque AppKit token also
+    // needs to be available for final cleanup with Swift 6.1 SDKs.
+    nonisolated(unsafe) private var monitor: Any?
 
     func install(handler: @escaping (NSEvent) -> NSEvent?) {
         remove()
@@ -966,7 +1003,7 @@ private struct BackgroundInspectorView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .font(AppTypography.metadata.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(AppTheme.editorAccent)
                                     .disabled(document.mockupTransform.isIdentity)
                                 }
 
@@ -1032,7 +1069,7 @@ private struct BackgroundInspectorView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .font(AppTypography.metadata.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(AppTheme.editorAccent)
                                     .disabled(document.mockupScreenFraming.isIdentity)
                                 }
 
@@ -1154,7 +1191,7 @@ private struct BackgroundInspectorView: View {
                 .contentShape(Rectangle())
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isExpanded ? Color.accentColor.opacity(0.08) : Color.clear)
+                        .fill(isExpanded ? AppTheme.editorAccent.opacity(0.08) : Color.clear)
                 )
             }
             .buttonStyle(.plain)
@@ -1192,13 +1229,13 @@ private struct BackgroundInspectorView: View {
                         .frame(width: 12)
                     Text(model)
                         .font(AppTypography.helper.weight(isSelectedModel ? .semibold : .regular))
-                        .foregroundStyle(isSelectedModel ? Color.accentColor : Color.primary)
+                        .foregroundStyle(isSelectedModel ? AppTheme.editorAccent : Color.primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if isSelectedModel {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(AppTheme.editorAccent)
                     }
                 }
                 .padding(.leading, 13)
@@ -1232,10 +1269,10 @@ private struct BackgroundInspectorView: View {
             HStack(spacing: 7) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
+                        .fill(isSelected ? AppTheme.editorAccent.opacity(0.12) : Color.primary.opacity(0.04))
                     Image(systemName: preset.orientation == .landscape ? "rectangle" : "rectangle.portrait")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(isSelected ? AppTheme.editorAccent : Color.secondary)
                 }
                 .frame(width: 28, height: 25)
 
@@ -1249,7 +1286,7 @@ private struct BackgroundInspectorView: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(AppTheme.editorAccent)
                 }
             }
             .padding(.horizontal, 7)
@@ -1257,7 +1294,7 @@ private struct BackgroundInspectorView: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+                    .fill(isSelected ? AppTheme.editorAccent.opacity(0.08) : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -1349,7 +1386,7 @@ private struct BackgroundInspectorView: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        document.backgroundSettings.style == style ? Color.accentColor : AppTheme.softBorder,
+                        document.backgroundSettings.style == style ? AppTheme.editorAccent : AppTheme.softBorder,
                         lineWidth: document.backgroundSettings.style == style ? 2 : 1
                     )
             }
@@ -1439,7 +1476,7 @@ private struct MockupWorkspaceView: View {
                                 .contentShape(Rectangle())
                                 .background(
                                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .fill(moveTarget == target ? Color.accentColor : Color.clear)
+                                        .fill(moveTarget == target ? AppTheme.editorAccent : Color.clear)
                                         .allowsHitTesting(false)
                                 )
                                 .scaleEffect(moveTarget == target ? 1 : 0.985)
@@ -1730,6 +1767,7 @@ private extension CaptureAnnotationDestination {
 @MainActor
 private final class CaptureExportController: ObservableObject {
     @Published private(set) var isWorking = false
+    @Published var errorMessage: String?
     @Published private(set) var statusText = ""
     @Published private(set) var buttonTitle = "Rendering…"
     private var task: Task<Void, Never>?
@@ -1742,12 +1780,15 @@ private final class CaptureExportController: ObservableObject {
         guard !isWorking else { return }
 
         isWorking = true
+        errorMessage = nil
         statusText = "Rendering full resolution…"
         buttonTitle = "Rendering…"
-        let workItem = document.makeCaptureExportWorkItem()
-
         task?.cancel()
         task = Task { [weak self, weak store] in
+            // Allow the pressed/loading state to appear before taking the full-resolution snapshot.
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            let workItem = document.makeCaptureExportWorkItem()
             let result = await Task.detached(priority: .userInitiated) {
                 Result { try workItem.render() }
             }.value
@@ -1759,23 +1800,67 @@ private final class CaptureExportController: ObservableObject {
                 self.statusText = destination.isClipboardDestination ? "Copying to Clipboard…" : "Saving…"
                 self.buttonTitle = destination.isClipboardDestination ? "Copying…" : "Saving…"
                 await Task.yield()
+                guard !Task.isCancelled else { return }
                 let succeeded = store.finishPreparedAnnotatedCapture(output, destination: destination)
                 if !succeeded {
                     self.isWorking = false
                     self.statusText = ""
+                    self.errorMessage = store.errorMessage ?? "Could not export this screenshot. Please try again."
                 }
             case .failure(let error):
                 self.isWorking = false
                 self.statusText = ""
+                self.errorMessage = error.localizedDescription
                 store.reportCaptureRenderFailure(error)
             }
         }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+        isWorking = false
+        statusText = ""
     }
 
     deinit {
         task?.cancel()
     }
 }
+
+#if REGRESSION_TESTING
+@MainActor
+enum EditorRegressionChecks {
+    static func run(image: NSImage, store: ScreenshotStore) async throws {
+        let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)!
+        let pixelImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        let document = AnnotationDocument(image: pixelImage)
+        document.cropRect = NSRect(x: 40, y: 30, width: 300, height: 180)
+        let output = try document.makeCaptureExportWorkItem().render()
+        let bitmap = NSBitmapImageRep(data: output.pngData)!
+        precondition(bitmap.pixelsWide == 300 && bitmap.pixelsHigh == 180)
+        print("PASS: export preserves crop dimensions")
+
+        let retinaImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width / 2, height: cgImage.height / 2))
+        let retinaDocument = AnnotationDocument(image: retinaImage)
+        retinaDocument.cropRect = document.cropRect
+        let retinaOutput = try retinaDocument.makeCaptureExportWorkItem().render()
+        let retinaBitmap = NSBitmapImageRep(data: retinaOutput.pngData)!
+        precondition(retinaBitmap.pixelsWide == 600 && retinaBitmap.pixelsHigh == 360)
+        print("PASS: Retina source resolution is preserved without extra upscaling")
+
+        let controller = CaptureExportController()
+        let clipboardVersion = NSPasteboard.general.changeCount
+        controller.run(document: document, store: store, destination: .capture(.clipboard))
+        precondition(controller.isWorking)
+        controller.cancel()
+        try await Task.sleep(for: .milliseconds(100))
+        precondition(!controller.isWorking)
+        precondition(NSPasteboard.general.changeCount == clipboardVersion)
+        print("PASS: cancelling export prevents clipboard writes")
+    }
+}
+#endif
 
 private final class CaptureExportWorkItem: @unchecked Sendable {
     let contentImage: NSImage
@@ -1970,8 +2055,8 @@ private struct MockupAlignmentGrid: View {
     var body: some View {
         Canvas { context, size in
             let thirds = Color.white.opacity(0.18)
-            let center = Color.accentColor.opacity(0.42)
-            let centerStrong = Color.accentColor.opacity(0.78)
+            let center = AppTheme.editorAccent.opacity(0.42)
+            let centerStrong = AppTheme.editorAccent.opacity(0.78)
 
             for index in 1...2 {
                 let x = size.width * CGFloat(index) / 3
@@ -2057,7 +2142,7 @@ private struct SmoothValueSlider: View {
                     .frame(height: 5)
 
                 Capsule(style: .continuous)
-                    .fill(Color.accentColor.opacity(isDragging ? 0.95 : 0.82))
+                    .fill(AppTheme.editorAccent.opacity(isDragging ? 0.95 : 0.82))
                     .frame(width: max(5, thumbX), height: 5)
 
                 Circle()
@@ -2325,10 +2410,26 @@ private final class AnnotationDocument: ObservableObject {
         let sourceBounds = NSRect(origin: .zero, size: image.size)
         let crop = normalizedCropRect.intersection(sourceBounds)
         let outputSize = NSSize(width: max(crop.width, 1), height: max(crop.height, 1))
-        let output = NSImage(size: outputSize)
-
-        output.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
+        // lockFocus() uses the current display scale and can silently double
+        // screenshot pixels on Retina. Export at the source image's actual scale.
+        let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        let scaleX = CGFloat(source?.width ?? Int(image.size.width)) / max(image.size.width, 1)
+        let scaleY = CGFloat(source?.height ?? Int(image.size.height)) / max(image.size.height, 1)
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: max(1, Int((outputSize.width * scaleX).rounded())),
+            pixelsHigh: max(1, Int((outputSize.height * scaleY).rounded())),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            return image
+        }
+        bitmap.size = outputSize
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = context
+        context.cgContext.scaleBy(x: CGFloat(bitmap.pixelsWide) / outputSize.width, y: CGFloat(bitmap.pixelsHigh) / outputSize.height)
+        context.imageInterpolation = .high
         let outputRect = NSRect(origin: .zero, size: outputSize)
         image.draw(in: outputRect, from: crop, operation: .copy, fraction: 1)
 
@@ -2340,7 +2441,8 @@ private final class AnnotationDocument: ObservableObject {
         }
         NSGraphicsContext.restoreGraphicsState()
 
-        output.unlockFocus()
+        let output = NSImage(size: outputSize)
+        output.addRepresentation(bitmap)
         return output
     }
 
@@ -2848,7 +2950,9 @@ private enum PhotoMockupCatalog {
 private enum PhotoMockupOverlayStyle: String, Codable, Sendable { case none, dynamicIsland }
 
 private struct PhotoMockupAsset: Identifiable, Codable, Equatable, Sendable {
-    private static let renderContext = CIContext(options: [.cacheIntermediates: false])
+    // CIContext supports concurrent rendering; older SDKs lack its Sendable annotation.
+    // https://developer.apple.com/documentation/coreimage/cicontext
+    nonisolated(unsafe) private static let renderContext = CIContext(options: [.cacheIntermediates: false])
 
     let id: UUID
     let presetID: String
@@ -4368,7 +4472,7 @@ private final class AnnotationCanvasNSView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
-        NSColor.textBackgroundColor.setFill()
+        NSColor(AppTheme.editorCanvasBackground).setFill()
         bounds.fill()
 
         guard let document else {
@@ -4974,16 +5078,16 @@ private final class AnnotationCanvasNSView: NSView {
             height: cropViewRect.height
         )).fill()
 
-        NSColor.controlAccentColor.setStroke()
+        NSColor(AppTheme.editorAccent).withAlphaComponent(0.7).setStroke()
         let border = NSBezierPath(rect: cropViewRect)
-        border.lineWidth = isMovingCrop ? 2.5 : 1.5
+        border.lineWidth = isMovingCrop ? 2 : 1
         border.stroke()
 
         CropHandle.allCases.forEach { handle in
             let rect = handleRect(for: handle, cropViewRect: cropViewRect)
             NSColor.windowBackgroundColor.setFill()
             NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2).fill()
-            NSColor.controlAccentColor.setStroke()
+            NSColor(AppTheme.editorAccent).withAlphaComponent(0.8).setStroke()
             let handlePath = NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2)
             handlePath.lineWidth = 1.2
             handlePath.stroke()

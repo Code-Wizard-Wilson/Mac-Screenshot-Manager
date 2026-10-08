@@ -14,7 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let saveHotkeyID: UInt32 = 2
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        (AppAppearance(rawValue: UserDefaults.standard.string(forKey: AppPreferenceKeys.appearance) ?? "system") ?? .system).apply()
+        NSApp.setActivationPolicy(.regular)
         showWindow()
         registerGlobalHotkeys()
         configureMenuBarVisibility()
@@ -74,13 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return true
     }
 
-    func windowWillClose(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow,
-              window.identifier == NSUserInterfaceItemIdentifier("ScreenshotManager.MainWindow") else {
-            return
-        }
-
-        NSApp.terminate(nil)
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     func openManagerWindow() {
@@ -103,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func setMenuBarItemVisible(_ visible: Bool) {
         UserDefaults.standard.set(visible, forKey: AppPreferenceKeys.showsMenuBarItem)
+        // The menu bar shortcut is optional; the app remains available in Dock / Cmd-Tab.
+        NSApp.setActivationPolicy(.regular)
 
         if visible {
             guard statusItem == nil else { return }
@@ -193,6 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.openSettingsWindow()
         }
         let hostingController = NSHostingController(rootView: contentView)
+        hostingController.view = FirstMouseHostingView(rootView: contentView)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1180, height: 760),
@@ -203,9 +202,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.title = "Screenshot Manager"
         window.titleVisibility = .hidden
         window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.MainWindow")
-        window.titlebarAppearsTransparent = false
-        window.backgroundColor = .windowBackgroundColor
-        window.isOpaque = true
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.hasShadow = true
         window.toolbarStyle = .unifiedCompact
         window.isReleasedWhenClosed = false
@@ -224,6 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func makeSettingsWindow() -> NSWindow {
         let contentView = SettingsView(store: store)
         let hostingController = NSHostingController(rootView: contentView)
+        hostingController.view = FirstMouseHostingView(rootView: contentView)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 500),
@@ -234,14 +235,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.title = "Screenshot Manager Settings"
         window.titleVisibility = .hidden
         window.identifier = NSUserInterfaceItemIdentifier("ScreenshotManager.SettingsWindow")
-        window.titlebarAppearsTransparent = false
-        window.backgroundColor = .windowBackgroundColor
-        window.isOpaque = true
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.hasShadow = true
         window.toolbarStyle = .unifiedCompact
         window.isReleasedWhenClosed = false
         window.isRestorable = false
-        window.minSize = NSSize(width: 700, height: 440)
+        window.minSize = NSSize(width: 760, height: 520)
         window.contentViewController = hostingController
         window.center()
 

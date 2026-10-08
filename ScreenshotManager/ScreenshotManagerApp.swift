@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+#if !REGRESSION_TESTING
 @main
 struct ScreenshotManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -11,6 +12,7 @@ struct ScreenshotManagerApp: App {
         }
     }
 }
+#endif
 
 struct MenuBarPanelView: View {
     @ObservedObject var store: ScreenshotStore
@@ -55,8 +57,8 @@ struct MenuBarPanelView: View {
                     title: "Clipboard",
                     subtitle: "Capture, edit, then copy",
                     shortcut: store.clipboardHotkey.displayString,
-                    systemImage: "doc.on.clipboard",
-                    tint: AppTheme.libraryAmber,
+                    systemImage: "viewfinder",
+                    tint: AppTheme.accent,
                     isDisabled: store.isCapturing
                 ) {
                     store.captureToClipboard()
@@ -66,8 +68,8 @@ struct MenuBarPanelView: View {
                     title: "Library",
                     subtitle: "Capture and save as PNG",
                     shortcut: store.saveHotkey.displayString,
-                    systemImage: "tray.and.arrow.down",
-                    tint: AppTheme.successGreen,
+                    systemImage: "square.and.arrow.down",
+                    tint: AppTheme.accent,
                     isDisabled: store.isCapturing
                 ) {
                     store.captureAndSaveToLibrary()
@@ -88,9 +90,9 @@ struct MenuBarPanelView: View {
                 HStack(spacing: 9) {
                     Image(systemName: "photo.stack")
                         .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(AppTheme.captureBlue)
+                        .foregroundStyle(AppTheme.accent)
                         .frame(width: 25, height: 25)
-                        .background(AppTheme.captureBlue.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                        .background(AppTheme.accentSoft, in: RoundedRectangle(cornerRadius: 7))
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Open Library")
@@ -133,6 +135,8 @@ struct MenuBarPanelView: View {
             }
             .ignoresSafeArea()
         }
+        .tint(AppTheme.accent)
+        .modifier(RespectMotionPreferences())
         .onAppear {
             store.refreshRequiredPermissions()
         }
@@ -276,12 +280,13 @@ private struct MenuBarFooterButton: View {
 struct SettingsView: View {
     @ObservedObject var store: ScreenshotStore
     @AppStorage(AppPreferenceKeys.showsMenuBarItem) private var showsMenuBarItem = true
+    @AppStorage(AppPreferenceKeys.appearance) private var appearance: AppAppearance = .system
     @State private var selectedSection: SettingsSection = .general
 
     var body: some View {
         HStack(spacing: 0) {
             settingsSidebar
-                .frame(width: 168)
+                .frame(width: 210)
 
             Divider()
                 .opacity(0.6)
@@ -290,18 +295,18 @@ struct SettingsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(selectedSection.title)
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(AppTypography.paneTitle)
 
                         Text(selectedSection.subtitle)
-                            .font(.system(size: 11.5))
+                            .font(AppTypography.helper)
                             .foregroundStyle(.secondary)
                     }
 
                     Spacer()
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 22)
-                .padding(.bottom, 14)
+                .padding(.horizontal, 28)
+                .padding(.top, 24)
+                .padding(.bottom, 18)
 
                 ScrollView {
                     Group {
@@ -314,17 +319,16 @@ struct SettingsView: View {
                             permissionsSection
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 28)
                 }
             }
-            .background(Color.primary.opacity(0.012))
+            .background(AppTheme.contentBackground)
         }
-        .frame(minWidth: 700, idealWidth: 760, minHeight: 440, idealHeight: 500)
-        .background {
-            VisualEffectView(material: .contentBackground, blendingMode: .behindWindow)
-                .ignoresSafeArea()
-        }
+        .frame(minWidth: 720, idealWidth: 780, minHeight: 460, idealHeight: 520)
+        .background { GlassSurface(material: .underWindowBackground) }
+        .tint(AppTheme.accent)
+        .modifier(RespectMotionPreferences())
         .onAppear {
             store.refreshRequiredPermissions()
             store.refreshLaunchAtLoginStatus()
@@ -335,25 +339,28 @@ struct SettingsView: View {
                 object: isVisible
             )
         }
+        .onChange(of: appearance) { _, value in
+            value.apply()
+        }
     }
 
     private var settingsSidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
                 BrandMarkView(isActive: false)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 30, height: 30)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Settings")
-                        .font(.system(size: 13.5, weight: .semibold))
                     Text("Screenshot Manager")
-                        .font(.system(size: 10.5))
+                        .font(AppTypography.productTitle)
+                    Text("Settings")
+                        .font(AppTypography.helper)
                         .foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.top, 18)
-            .padding(.bottom, 18)
+            .padding(.top, 17)
+            .padding(.bottom, 22)
 
             VStack(spacing: 4) {
                 ForEach(SettingsSection.allCases) { section in
@@ -364,27 +371,31 @@ struct SettingsView: View {
                     } label: {
                         HStack(spacing: 9) {
                             Image(systemName: section.icon)
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .foregroundStyle(selectedSection == section ? section.tint : Color.secondary)
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    section.tint.opacity(selectedSection == section ? 0.13 : 0),
-                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                )
+                                .font(.system(size: 12.5, weight: .medium))
+                                .foregroundStyle(selectedSection == section ? AppTheme.assetInk : AppTheme.assetMuted)
+                                .frame(width: 22, height: 24)
 
                             Text(section.title)
-                                .font(.system(size: 12.5, weight: selectedSection == section ? .semibold : .medium))
-                                .foregroundStyle(selectedSection == section ? Color.primary : Color.secondary)
+                                .font(AppTypography.itemTitle.weight(selectedSection == section ? .semibold : .medium))
+                                .foregroundStyle(selectedSection == section ? AppTheme.assetInk : AppTheme.assetMuted)
 
                             Spacer()
                         }
-                        .padding(.horizontal, 8)
-                        .frame(height: 36)
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
                         .contentShape(Rectangle())
                         .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.primary.opacity(selectedSection == section ? 0.065 : 0))
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(selectedSection == section ? AppTheme.sidebarIconSelectedBackground : Color.clear)
                         )
+                        .overlay(alignment: .leading) {
+                            if selectedSection == section {
+                                Capsule()
+                                    .fill(AppTheme.accent)
+                                    .frame(width: 2, height: 16)
+                                    .offset(x: -1)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -399,11 +410,28 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .padding(.bottom, 14)
         }
-        .background(.ultraThinMaterial)
+        .background { GlassSurface() }
     }
 
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 14) {
+            SettingsCard(title: "Appearance") {
+                SettingsRow(
+                    icon: "circle.lefthalf.filled",
+                    tint: AppTheme.assetMuted,
+                    title: "Theme",
+                    detail: "Applies to the library, editor and menu bar."
+                ) {
+                    Picker("Theme", selection: $appearance) {
+                        ForEach(AppAppearance.allCases) { value in
+                            Text(value.title).tag(value)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 120)
+                }
+            }
+
             SettingsCard(title: "App") {
                 SettingsRow(
                     icon: "menubar.rectangle",
@@ -588,11 +616,7 @@ private enum SettingsSection: CaseIterable, Identifiable {
     }
 
     var tint: Color {
-        switch self {
-        case .general: return AppTheme.settingsViolet
-        case .hotkeys: return AppTheme.libraryAmber
-        case .permissions: return AppTheme.captureBlue
-        }
+        AppTheme.accent
     }
 }
 
@@ -602,10 +626,9 @@ private struct SettingsCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title.uppercased())
-                .font(.system(size: 9.5, weight: .bold))
-                .tracking(0.65)
-                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(AppTypography.eyebrow)
+                .foregroundStyle(AppTheme.assetMuted)
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {
@@ -613,11 +636,11 @@ private struct SettingsCard<Content: View>: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(0.035))
+                    .fill(AppTheme.cardBackground)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.primary.opacity(0.07), lineWidth: 0.7)
+                    .stroke(AppTheme.border, lineWidth: 1)
             }
         }
     }
@@ -636,14 +659,14 @@ private struct SettingsRow<Controls: View>: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
-                .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(AppTheme.accentSoft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(AppTypography.itemTitle.weight(.semibold))
 
                 Text(detail)
-                    .font(.system(size: 10.5))
+                    .font(AppTypography.helper)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
@@ -653,9 +676,9 @@ private struct SettingsRow<Controls: View>: View {
 
             controls
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 11)
-        .frame(minHeight: 58)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(minHeight: 62)
     }
 }
 
